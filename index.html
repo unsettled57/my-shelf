@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#5b5bd6">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="작품 서재">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>작품 서재</title>
+<style>
+:root{
+  --bg:#f6f6f8; --card:#fff; --ink:#1d1d22; --sub:#6b6b76; --line:#e4e4ea;
+  --accent:#5b5bd6; --accent-soft:#ececfb; --good:#2f8f5b; --warn:#b7791f; --bad:#c0392b;
+  --chip:#f0f0f4; --radius:12px;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#141418; --card:#1e1e24; --ink:#ececf1; --sub:#9a9aa6; --line:#2e2e36;
+    --accent:#8b8bf0; --accent-soft:#2a2a45; --chip:#2a2a32; }
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  font-size:15px;line-height:1.45;-webkit-text-size-adjust:100%}
+button,input,select,textarea{font:inherit;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--bg);display:flex;align-items:center;justify-content:space-between;
+  padding:calc(10px + env(safe-area-inset-top)) 16px 8px}
+header h1{font-size:20px;margin:0}
+#syncState{font-size:12px;color:var(--sub);cursor:pointer}
+main{padding:0 16px calc(90px + env(safe-area-inset-bottom));max-width:720px;margin:0 auto}
+nav.tabbar{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:var(--card);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom)}
+nav.tabbar button{flex:1;border:0;background:none;padding:10px 0 8px;font-size:12px;color:var(--sub)}
+nav.tabbar button b{display:block;font-size:18px;font-weight:400}
+nav.tabbar button.on{color:var(--accent);font-weight:600}
+.fab{position:fixed;right:18px;bottom:calc(72px + env(safe-area-inset-bottom));z-index:6;width:52px;height:52px;border-radius:50%;
+  border:0;background:var(--accent);color:#fff;font-size:28px;box-shadow:0 4px 12px rgba(0,0,0,.2)}
+.input,select.input,textarea.input{width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--card)}
+textarea.input{min-height:72px;resize:vertical}
+.search{font-size:16px;padding:12px 14px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.chip{border:1px solid var(--line);background:var(--chip);border-radius:999px;padding:4px 11px;font-size:13px;cursor:pointer;white-space:nowrap}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.chip.small{font-size:12px;padding:2px 8px}
+.chip .x{margin-left:4px;opacity:.7}
+.btn{border:1px solid var(--line);background:var(--card);border-radius:10px;padding:8px 14px;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.danger{color:var(--bad)}
+.btn.small{padding:4px 10px;font-size:13px}
+.btn:disabled{opacity:.5}
+.card{display:flex;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px;margin:8px 0;cursor:pointer}
+.thumb{width:56px;height:76px;border-radius:8px;object-fit:cover;flex:none;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;
+  color:var(--accent);font-weight:700;font-size:20px;overflow:hidden}
+.card .body{min-width:0;flex:1}
+.card .t{font-weight:600}
+.ed{font-size:13px;color:var(--sub);margin-top:2px}
+.ed .f{display:inline-block;min-width:30px;color:var(--ink);font-weight:600}
+.hint{font-size:12px;color:var(--accent);margin-top:3px}
+.muted{color:var(--sub);font-size:13px}
+.sec{margin:18px 0 6px;display:flex;justify-content:space-between;align-items:baseline}
+.sec h2{font-size:16px;margin:0}
+.box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin:8px 0}
+.empty{text-align:center;color:var(--sub);padding:36px 12px}
+.bar{height:8px;background:var(--chip);border-radius:4px;overflow:hidden;margin:3px 0 6px}
+.bar i{display:block;height:100%;background:var(--accent)}
+.bar.own i{background:var(--good)}
+.gbar{display:flex;align-items:center;gap:8px;font-size:13px;margin:4px 0}
+.gbar span:first-child{width:96px;flex:none}
+.gbar .bar{flex:1;margin:0}
+label.f{display:block;font-size:13px;color:var(--sub);margin:12px 0 4px}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.35);display:flex;align-items:flex-end;justify-content:center}
+.sheet.hidden{display:none}
+.panel{background:var(--bg);width:100%;max-width:720px;max-height:94vh;overflow:auto;border-radius:16px 16px 0 0;
+  padding:14px 16px calc(24px + env(safe-area-inset-bottom))}
+.panel-head{display:flex;justify-content:space-between;align-items:center;position:sticky;top:-14px;background:var(--bg);padding:6px 0 8px;z-index:2}
+.panel-head h3{margin:0;font-size:17px}
+.cover{width:120px;height:164px;border-radius:10px;object-fit:cover;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;
+  color:var(--accent);font-size:40px;font-weight:700;flex:none;overflow:hidden}
+.edbox{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin:10px 0}
+.edbox h4{margin:0 0 6px;font-size:15px;display:flex;justify-content:space-between;align-items:center}
+.badge{font-size:11px;padding:1px 7px;border-radius:6px;background:var(--chip);color:var(--sub);font-weight:500}
+.badge.good{background:rgba(47,143,91,.15);color:var(--good)}
+.badge.warn{background:rgba(183,121,31,.15);color:var(--warn)}
+.hold-row,.person-row{display:grid;gap:6px;margin:6px 0;align-items:center}
+.hold-row{grid-template-columns:1fr 92px 92px 32px}
+.person-row{grid-template-columns:1fr 100px 32px}
+.iconbtn{border:0;background:none;font-size:18px;color:var(--sub);cursor:pointer}
+details.axis{border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin:6px 0;background:var(--card)}
+details.axis summary{cursor:pointer;font-size:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+#toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#222;color:#fff;
+  padding:8px 14px;border-radius:10px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
+#toast.show{opacity:.95}
+.warntext{color:var(--bad);font-size:12px}
+.taglist-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);gap:6px}
+.taglist-row:last-child{border-bottom:0}
+</style>
+</head>
+<body>
+<header><h1 id="ttl">검색</h1><span id="syncState" data-act="syncNow"></span></header>
+<main id="view"></main>
+<button class="fab" id="fab" data-act="newWork" aria-label="작품 추가">＋</button>
+<nav class="tabbar">
+  <button data-act="tab" data-tab="search"><b>⌕</b>검색</button>
+  <button data-act="tab" data-tab="dash"><b>◔</b>대시보드</button>
+  <button data-act="tab" data-tab="library"><b>☰</b>서재</button>
+  <button data-act="tab" data-tab="settings"><b>⚙</b>설정</button>
+</nav>
+<div id="sheet" class="sheet hidden"><div class="panel" id="panel"></div></div>
+<div id="toast"></div>
+<datalist id="peopleList"></datalist>
+
+<script>
+'use strict';
+/* ===== 상수 ===== */
+const FORMATS = {
+  webtoon:{label:'웹툰', unit:'화'},
+  novel:{label:'웹소', unit:'화'},
+  drama:{label:'드시', unit:'트랙'}
+};
+const FMT_KEYS = Object.keys(FORMATS);
+const DEFAULT_PLATFORMS = {webtoon:['봄툰','레진','미블','리디'], novel:['리디','봄툰','미블'], drama:['아코','플링','밤바다']};
+const GENRE_AXIS = '장르';
+const AXES = ['장르','장면·사건','관계','설정·배경','분위기','공 속성','수 속성','기타'];
+const SEED_TAGS = {
+  '장르':['로맨스','BL','GL','판타지','드라마','스릴러·미스터리','개그·일상','느와르','아포칼립스','스포츠','힐링'],
+  '장면·사건':['첫만남','재회','다툼','화해','고백','질투','오해','이별','구출','정체 발각'],
+  '관계':['소꿉친구','계약 관계','적에서 연인','짝사랑','구원'],
+  '설정·배경':['동양물','서양풍','오피스','캠퍼스','학원','회귀·빙의·환생','오메가버스','센티넬버스'],
+  '분위기':['달달','피폐','코믹','잔잔'],
+  '공 속성':['다정공','집착공','광공','연하공','연상공','능글공','무심공','계략공','순정공','대형견공','미인공'],
+  '수 속성':['아방수','다정수','미인수','연하수','연상수','단정수','짝사랑수','상처수','능력수','철벽수','도망수']
+};
+const WATCH = {none:'안 봄', reading:'보는 중', done:'완독'};
+const OWN_LABEL = {full:'전체 소장', part:'일부 소장', rent:'대여·기다무', none:'미보유'};
+const HOLD_TYPE = {own:'소장', rent:'대여·기다무'};
+const ROLES = {author:'원작 작가', voice:'성우'};
+const STALE_DAYS = 30;
+
+/* ===== 유틸 ===== */
+const $ = s => document.querySelector(s);
+const $$ = (s, el=document) => [...el.querySelectorAll(s)];
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+const now = () => Date.now();
+const today = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const live = arr => (arr || []).filter(x => !x.deleted);
+const clone = o => JSON.parse(JSON.stringify(o));
+function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200); }
+function fmtTime(ts){ if(!ts) return '없음'; const d = new Date(ts); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+
+/* ===== 범위 계산 ===== */
+const RANGE_CAP = 5000;
+function parseRange(str){
+  const set = new Set(); const bad = [];
+  if(!str) return {set, bad};
+  const parts = String(str).replace(/[~〜–—]/g,'-').replace(/\s*-\s*/g,'-').split(/[,\s]+/).filter(Boolean);
+  for(const p of parts){
+    let m = /^(\d+)-(\d+)$/.exec(p);
+    if(m){ const a = +m[1], b = +m[2]; if(a >= 1 && b >= a && b - a <= RANGE_CAP){ for(let i=a;i<=b;i++) set.add(i); } else bad.push(p); continue; }
+    m = /^(\d+)$/.exec(p);
+    if(m && +m[1] >= 1){ set.add(+m[1]); continue; }
+    bad.push(p);
+  }
+  return {set, bad};
+}
+function formatSet(set){
+  const nums = [...set].sort((a,b) => a-b); const out = [];
+  for(let i=0;i<nums.length;){ let j=i; while(j+1<nums.length && nums[j+1]===nums[j]+1) j++; out.push(i===j ? `${nums[i]}` : `${nums[i]}-${nums[j]}`); i=j+1; }
+  return out.join(', ');
+}
+function editionStats(ed){
+  const own = new Set(), rent = new Set();
+  for(const h of ed.holdings || []){ const {set} = parseRange(h.range); for(const n of set) (h.type === 'rent' ? rent : own).add(n); }
+  const read = parseRange(ed.read).set;
+  const total = +ed.total || 0;
+  let status = 'none';
+  if(own.size && total && own.size >= total) status = 'full';
+  else if(own.size) status = 'part';
+  else if(rent.size) status = 'rent';
+  let unreadOwned = 0; for(const n of own) if(!read.has(n)) unreadOwned++;
+  const maxRead = read.size ? Math.max(...read) : 0;
+  return {own, rent, read, total, status, ownCount: own.size, readCount: read.size, unreadOwned, maxRead};
+}
+function workStats(w){
+  const res = {}; let unreadOwned = 0, anyOwn = false, anyHold = false;
+  for(const f of FMT_KEYS){ const ed = w.editions?.[f]; if(!ed) continue; const s = editionStats(ed); res[f] = s; unreadOwned += s.unreadOwned; if(s.ownCount) anyOwn = true; if(s.ownCount || s.rent.size) anyHold = true; }
+  return {eds: res, unreadOwned, anyOwn, anyHold};
+}
+
+/* ===== 초성 검색 ===== */
+const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
+const cho = s => [...s].map(c => { const k = c.charCodeAt(0) - 0xAC00; return k >= 0 && k < 11172 ? CHO[Math.floor(k/588)] : c; }).join('');
+const norm = s => String(s || '').toLowerCase().replace(/\s+/g, '');
+function textMatch(q, text){
+  const nq = norm(q); if(!nq) return true;
+  const nt = norm(text); if(nt.includes(nq)) return true;
+  if(/[ㄱ-ㅎ]/.test(nq)) return cho(nt).includes(cho(nq));
+  return false;
+}
+
+/* ===== IndexedDB ===== */
+let _db;
+function db(){
+  if(_db) return Promise.resolve(_db);
+  return new Promise((res, rej) => {
+    const r = indexedDB.open('content-tracker', 1);
+    r.onupgradeneeded = () => { const d = r.result; d.createObjectStore('kv'); d.createObjectStore('images'); };
+    r.onsuccess = () => { _db = r.result; res(_db); };
+    r.onerror = () => rej(r.error);
+  });
+}
+async function tx(store, mode, fn){
+  const d = await db();
+  return new Promise((res, rej) => { const t = d.transaction(store, mode); const st = t.objectStore(store); const r = fn(st); t.oncomplete = () => res(r?.result); t.onerror = () => rej(t.error); });
+}
+const kvGet = k => tx('kv', 'readonly', s => s.get(k));
+const kvSet = (k, v) => tx('kv', 'readwrite', s => s.put(v, k));
+const imgGet = id => tx('images', 'readonly', s => s.get(id));
+const imgPut = (id, rec) => tx('images', 'readwrite', s => s.put(rec, id));
+const imgDel = id => tx('images', 'readwrite', s => s.delete(id));
+
+/* ===== 데이터 ===== */
+let data, syncCfg = {url:'', key:'', last:0};
+function emptyData(){
+  const tags = []; let t = 1;
+  for(const axis of Object.keys(SEED_TAGS)) for(const name of SEED_TAGS[axis]) tags.push({id:'t'+(t++).toString(36), name, axis, updatedAt:1});
+  return {version:1, works:[], tags, people:[], scenes:[], settings:{platforms:clone(DEFAULT_PLATFORMS), updatedAt:1}};
+}
+let syncTimer;
+async function save(){
+  await kvSet('data', data);
+  if(syncCfg.url && syncCfg.key){ clearTimeout(syncTimer); syncTimer = setTimeout(() => sync(true), 4000); }
+}
+const tagById = id => data.tags.find(t => t.id === id);
+const personById = id => data.people.find(p => p.id === id);
+const workById = id => data.works.find(w => w.id === id);
+const platformsOf = f => data.settings.platforms?.[f] || DEFAULT_PLATFORMS[f];
+function tagCount(id){ return live(data.works).filter(w => (w.tags||[]).includes(id)).length; }
+function personCount(id){ return live(data.works).filter(w => (w.people||[]).some(p => p.id === id)).length; }
+function findTagByName(name){ const n = norm(name); return live(data.tags).find(t => norm(t.name) === n); }
+function ensureTag(name, axis){
+  let t = findTagByName(name);
+  if(!t){ t = {id:uid(), name:name.trim(), axis: axis || '기타', updatedAt:now()}; data.tags.push(t); }
+  return t;
+}
+function ensurePerson(name){
+  const n = norm(name); let p = live(data.people).find(x => norm(x.name) === n);
+  if(!p){ p = {id:uid(), name:name.trim(), updatedAt:now()}; data.people.push(p); }
+  return p;
+}
+
+/* ===== 이미지 ===== */
+const imgURL = new Map();
+async function coverURL(id){
+  if(imgURL.has(id)) return imgURL.get(id);
+  const rec = await imgGet(id); const url = rec?.blob ? URL.createObjectURL(rec.blob) : '';
+  imgURL.set(id, url); return url;
+}
+function dropURL(id){ const u = imgURL.get(id); if(u) URL.revokeObjectURL(u); imgURL.delete(id); }
+async function compressImage(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = url; });
+    const scale = Math.min(1, 360 / img.width, 480 / img.height);
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise(res => c.toBlob(res, 'image/jpeg', 0.82));
+  } finally { URL.revokeObjectURL(url); }
+}
+// 화면에 그린 뒤 표지 채우기
+async function fillCovers(root=document){
+  for(const el of $$('[data-cover]', root)){
+    const id = el.dataset.cover; const w = workById(id); if(!w?.hasImg) continue;
+    const u = await coverURL(id); if(!u) continue;
+    if(el.tagName === 'IMG'){ el.src = u; } else { const im = document.createElement('img'); im.className = el.className; im.src = u; im.alt = ''; im.dataset.cover = id; el.replaceWith(im); }
+  }
+}
+function coverEl(w, cls){ return `<div class="${cls}" data-cover="${esc(w.id)}">${esc((w.title||'?').trim().charAt(0))}</div>`; }
+
+/* ===== 상태 ===== */
+const ui = {tab:'search', q:'', fFormats:[], fOwn:'', fWish:false, fTags:[], libFormat:'', libPlatform:'', libSort:'title', draft:null, draftCover:null};
+
+/* ===== 공통 표시 ===== */
+function edLine(f, ed, s){
+  const fm = FORMATS[f];
+  const ownTxt = s.ownCount ? (s.total ? ` ${s.ownCount}/${s.total}` : ` ${s.ownCount}${fm.unit}`) : '';
+  const readTxt = s.readCount ? ` · 읽음 ${s.readCount}${s.total ? '/' + s.total : ''}` : '';
+  return `<div class="ed"><span class="f">${fm.label}</span> ${esc(ed.platform || '')} · ${OWN_LABEL[s.status]}${ownTxt} · ${WATCH[ed.watch||'none']}${readTxt}</div>`;
+}
+function workCard(w, hint=''){
+  const st = workStats(w);
+  const eds = FMT_KEYS.filter(f => w.editions?.[f]).map(f => edLine(f, w.editions[f], st.eds[f])).join('') || '<div class="ed">등록된 형태 없음</div>';
+  const tagNames = (w.tags||[]).map(tagById).filter(t => t && !t.deleted).slice(0, 5).map(t => t.name).join(' · ');
+  return `<div class="card" data-act="open" data-id="${esc(w.id)}">${coverEl(w,'thumb')}
+    <div class="body"><div class="t">${esc(w.title)} ${w.wish ? '<span style="color:var(--bad)">♡</span>' : ''}</div>${eds}
+    ${tagNames ? `<div class="muted" style="font-size:12px;margin-top:3px">${esc(tagNames)}</div>` : ''}${hint ? `<div class="hint">${hint}</div>` : ''}</div></div>`;
+}
+
+/* ===== 검색 ===== */
+function searchWorks(){
+  const q = ui.q.trim(); const out = [];
+  for(const w of live(data.works)){
+    let hint = '';
+    if(q){
+      if(textMatch(q, w.title)) hint = '';
+      else if((w.aliases||[]).some(a => textMatch(q, a))) hint = '별칭: ' + esc((w.aliases||[]).find(a => textMatch(q, a)));
+      else {
+        const p = (w.people||[]).map(x => ({...x, p: personById(x.id)})).find(x => x.p && !x.p.deleted && textMatch(q, x.p.name));
+        if(p) hint = `${ROLES[p.role]||''}: ${esc(p.p.name)}`;
+        else {
+          const t = (w.tags||[]).map(tagById).find(t => t && !t.deleted && textMatch(q, t.name));
+          if(t) hint = '태그: ' + esc(t.name);
+          else if(w.memo && textMatch(q, w.memo)) hint = '메모에서 찾음';
+          else continue;
+        }
+      }
+    }
+    if(ui.fFormats.length && !ui.fFormats.some(f => w.editions?.[f])) continue;
+    if(ui.fWish && !w.wish) continue;
+    if(ui.fTags.length && !ui.fTags.every(t => (w.tags||[]).includes(t))) continue;
+    if(ui.fOwn){
+      const st = workStats(w);
+      if(ui.fOwn === 'own' && !st.anyOwn) continue;
+      if(ui.fOwn === 'unread' && !st.unreadOwned) continue;
+      if(ui.fOwn === 'none' && st.anyHold) continue;
+      if(ui.fOwn === 'unread') hint = (hint ? hint + ' · ' : '') + `안 본 소장분 ${st.unreadOwned}`;
+    }
+    out.push({w, hint});
+  }
+  out.sort((a,b) => a.w.title.localeCompare(b.w.title, 'ko'));
+  return out;
+}
+function renderSearch(){
+  const v = $('#view');
+  if(!live(data.works).length){
+    v.innerHTML = `<div class="empty">아직 등록한 작품이 없어요.<br><br><button class="btn primary" data-act="newWork">첫 작품 추가</button><br><br><span class="muted">JSON 파일이 있다면 설정 → 가져오기</span></div>`;
+    return;
+  }
+  const ownOpts = [['','전체'],['own','소장 있음'],['unread','안 본 소장분'],['none','미보유']];
+  v.innerHTML = `
+    <input id="q" class="input search" type="search" placeholder="제목·초성·별칭·작가·성우·태그" value="${esc(ui.q)}" autocomplete="off">
+    <div class="chips">${FMT_KEYS.map(f => `<span class="chip ${ui.fFormats.includes(f)?'on':''}" data-act="fFormat" data-f="${f}">${FORMATS[f].label}</span>`).join('')}
+      <span class="chip ${ui.fWish?'on':''}" data-act="fWish">♡ 보고싶음</span></div>
+    <div class="chips">${ownOpts.map(([k,l]) => `<span class="chip ${ui.fOwn===k?'on':''}" data-act="fOwn" data-k="${k}">${l}</span>`).join('')}</div>
+    <div class="chips"><span class="chip" data-act="tagPicker">＃ 태그로 찾기${ui.fTags.length ? ` (${ui.fTags.length})` : ''}</span>
+      ${ui.fTags.map(id => { const t = tagById(id); return t ? `<span class="chip on" data-act="fTagRemove" data-id="${id}">${esc(t.name)}<span class="x">✕</span></span>` : ''; }).join('')}
+      ${(ui.q || ui.fFormats.length || ui.fOwn || ui.fWish || ui.fTags.length) ? '<span class="chip" data-act="fReset">초기화</span>' : ''}</div>
+    <div id="results"></div>`;
+  const q = $('#q');
+  q.addEventListener('input', () => { ui.q = q.value; renderResults(); });
+  renderResults();
+}
+function renderResults(){
+  const r = searchWorks();
+  $('#results').innerHTML = `<div class="muted">${r.length}개 작품</div>` + (r.map(x => workCard(x.w, x.hint)).join('') || '<div class="empty">조건에 맞는 작품이 없어요</div>');
+  fillCovers($('#results'));
+}
+
+/* ===== 대시보드 ===== */
+function renderDash(){
+  const works = live(data.works);
+  const reading = [], unread = [], wish = [], other = [], stale = [];
+  const limit = Date.now() - STALE_DAYS * 864e5;
+  for(const w of works){
+    const st = workStats(w); const eds = FMT_KEYS.filter(f => w.editions?.[f]);
+    const rf = eds.filter(f => w.editions[f].watch === 'reading');
+    if(rf.length) reading.push({w, hint: rf.map(f => { const s = st.eds[f]; return `${FORMATS[f].label} ${s.maxRead}${FORMATS[f].unit}까지`; }).join(' · ')});
+    if(st.unreadOwned) unread.push({w, n: st.unreadOwned, hint:`안 본 소장분 ${st.unreadOwned}`});
+    if(w.wish){
+      if(!eds.length || eds.some(f => st.eds[f].status !== 'full')) wish.push({w, hint:''});
+      const done = eds.filter(f => w.editions[f].watch === 'done'), notDone = eds.filter(f => w.editions[f].watch !== 'done');
+      if(done.length && notDone.length) other.push({w, hint:`${done.map(f => FORMATS[f].label).join('·')} 완독 → ${notDone.map(f => FORMATS[f].label).join('·')}`});
+    }
+    for(const f of eds){ const ed = w.editions[f]; if(ed.serial === 'ongoing' && (!ed.totalUpdated || Date.parse(ed.totalUpdated) < limit)){ stale.push({w, hint:`${FORMATS[f].label} 총 화수 갱신일: ${ed.totalUpdated || '없음'}`}); break; } }
+  }
+  unread.sort((a,b) => b.n - a.n);
+  const genres = live(data.tags).filter(t => t.axis === GENRE_AXIS).map(t => ({t, n: tagCount(t.id)})).filter(x => x.n).sort((a,b) => b.n - a.n);
+  const maxG = genres[0]?.n || 1;
+  const block = (title, list, key) => {
+    const open = ui['more_'+key]; const shown = open ? list : list.slice(0, 5);
+    return `<div class="sec"><h2>${title}</h2><span class="muted">${list.length}</span></div>` +
+      (list.length ? shown.map(x => workCard(x.w, x.hint)).join('') + (list.length > 5 ? `<button class="btn small" data-act="more" data-k="${key}">${open ? '접기' : '전체 보기'}</button>` : '') : '<div class="muted">없음</div>');
+  };
+  const totalEds = FMT_KEYS.map(f => `${FORMATS[f].label} ${works.filter(w => w.editions?.[f]).length}`).join(' · ');
+  $('#view').innerHTML = `<div class="box"><b>작품 ${works.length}개</b><div class="muted">${totalEds}</div></div>` +
+    block('보는 중', reading, 'reading') +
+    block('사놓고 안 본 부분', unread, 'unread') +
+    block('♡ 구매 후보', wish, 'wish') +
+    block('다른 형태로도 보고 싶은 작품', other, 'other') +
+    block('연재 중 · 총 화수 확인 필요', stale, 'stale') +
+    `<div class="sec"><h2>장르 분포</h2></div><div class="box">${genres.map(g => `<div class="gbar"><span>${esc(g.t.name)}</span><div class="bar"><i style="width:${g.n/maxG*100}%"></i></div><span>${g.n}</span></div>`).join('') || '<div class="muted">장르 태그가 붙은 작품이 없어요</div>'}</div>`;
+  fillCovers();
+}
+
+/* ===== 서재 ===== */
+function renderLibrary(){
+  const allPlat = [...new Set(live(data.works).flatMap(w => FMT_KEYS.map(f => w.editions?.[f]?.platform).filter(Boolean)))];
+  let list = live(data.works).filter(w => (!ui.libFormat || w.editions?.[ui.libFormat]) &&
+    (!ui.libPlatform || FMT_KEYS.some(f => w.editions?.[f]?.platform === ui.libPlatform && (!ui.libFormat || f === ui.libFormat))));
+  if(ui.libSort === 'title') list.sort((a,b) => a.title.localeCompare(b.title, 'ko'));
+  else if(ui.libSort === 'updated') list.sort((a,b) => b.updatedAt - a.updatedAt);
+  else list = list.map(w => ({w, n: workStats(w).unreadOwned})).sort((a,b) => b.n - a.n).map(x => x.w);
+  $('#view').innerHTML = `<div class="grid2">
+      <select class="input" id="libFormat"><option value="">모든 형태</option>${FMT_KEYS.map(f => `<option value="${f}" ${ui.libFormat===f?'selected':''}>${FORMATS[f].label}</option>`).join('')}</select>
+      <select class="input" id="libPlatform"><option value="">모든 플랫폼</option>${allPlat.map(p => `<option ${ui.libPlatform===p?'selected':''}>${esc(p)}</option>`).join('')}</select></div>
+    <div class="chips">${[['title','제목순'],['updated','최근 수정'],['unread','안 본 소장분 많은 순']].map(([k,l]) => `<span class="chip ${ui.libSort===k?'on':''}" data-act="libSort" data-k="${k}">${l}</span>`).join('')}</div>
+    <div class="muted">${list.length}개 작품</div>${list.map(w => workCard(w)).join('') || '<div class="empty">작품이 없어요</div>'}`;
+  $('#libFormat').onchange = e => { ui.libFormat = e.target.value; renderLibrary(); };
+  $('#libPlatform').onchange = e => { ui.libPlatform = e.target.value; renderLibrary(); };
+  fillCovers();
+}
+
+/* ===== 설정 ===== */
+function renderSettings(){
+  $('#view').innerHTML = `
+    <div class="sec"><h2>Drive 동기화</h2></div>
+    <div class="box">
+      <label class="f">Apps Script 웹앱 주소</label><input class="input" id="sUrl" value="${esc(syncCfg.url)}" placeholder="https://script.google.com/macros/s/.../exec">
+      <label class="f">비밀 키</label><input class="input" id="sKey" type="password" value="${esc(syncCfg.key)}">
+      <div class="muted" style="margin-top:6px">주소와 키는 이 기기에만 저장돼요. 마지막 동기화: ${fmtTime(syncCfg.last)}</div>
+      <div class="row" style="margin-top:10px"><button class="btn" data-act="saveSync">저장</button><button class="btn primary" data-act="syncNow">지금 동기화</button></div>
+    </div>
+    <div class="sec"><h2>플랫폼 우선순위</h2></div>
+    <div class="box">${FMT_KEYS.map(f => `<label class="f">${FORMATS[f].label} (쉼표로 구분, 앞쪽이 기본값)</label><input class="input" data-plat="${f}" value="${esc(platformsOf(f).join(', '))}">`).join('')}
+      <div class="row" style="margin-top:10px"><button class="btn" data-act="savePlat">저장</button></div></div>
+    <div class="sec"><h2>태그 · 인물</h2></div>
+    <div class="box row"><button class="btn" data-act="tagManager">태그 관리 (${live(data.tags).length})</button><button class="btn" data-act="personManager">인물 관리 (${live(data.people).length})</button></div>
+    <div class="sec"><h2>백업</h2></div>
+    <div class="box"><div class="row"><button class="btn" data-act="exportJson">JSON 내보내기</button><button class="btn" data-act="importJson">JSON 가져오기</button></div>
+      <div class="muted" style="margin-top:6px">내보내기에는 표지 이미지가 포함되지 않아요(이미지는 Drive에 따로 저장). 가져오기는 기존 데이터에 합쳐져요.</div>
+      <input type="file" id="importFile" accept="application/json,.json" hidden></div>`;
+  $('#importFile').onchange = importJson;
+}
+
+/* ===== 라우팅 ===== */
+const TITLES = {search:'검색', dash:'대시보드', library:'서재', settings:'설정'};
+function render(){
+  $('#ttl').textContent = TITLES[ui.tab];
+  $$('nav.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  $('#fab').style.display = (ui.tab === 'search' || ui.tab === 'library') && live(data.works).length ? '' : 'none';
+  ({search:renderSearch, dash:renderDash, library:renderLibrary, settings:renderSettings})[ui.tab]();
+  $('#peopleList').innerHTML = live(data.people).map(p => `<option value="${esc(p.name)}">`).join('');
+}
+
+/* ===== 시트 ===== */
+let sheetOnClose = null;
+function openSheet(html, onClose){ $('#panel').innerHTML = html; $('#sheet').classList.remove('hidden'); $('#panel').scrollTop = 0; sheetOnClose = onClose || null; document.body.style.overflow = 'hidden'; }
+function closeSheet(){ $('#sheet').classList.add('hidden'); $('#panel').innerHTML = ''; document.body.style.overflow = ''; const f = sheetOnClose; sheetOnClose = null; if(f) f(); }
+$('#sheet').addEventListener('click', e => { if(e.target.id === 'sheet') closeSheet(); });
+
+/* ===== 작품 상세 ===== */
+function renderDetail(id){
+  const w = workById(id); if(!w || w.deleted) return closeSheet();
+  const st = workStats(w);
+  const people = (w.people||[]).map(x => ({...x, p: personById(x.id)})).filter(x => x.p && !x.p.deleted);
+  const tags = (w.tags||[]).map(tagById).filter(t => t && !t.deleted);
+  const eds = FMT_KEYS.filter(f => w.editions?.[f]).map(f => {
+    const ed = w.editions[f], s = st.eds[f], fm = FORMATS[f];
+    const pct = (n) => s.total ? Math.min(100, n / s.total * 100) : 0;
+    return `<div class="edbox"><h4><span>${fm.label} <span class="muted">${esc(ed.platform||'')}</span></span>
+        <span><span class="badge ${ed.serial==='ongoing'?'warn':'good'}">${ed.serial==='ongoing'?'연재 중':'완결'}</span> <span class="badge">${WATCH[ed.watch||'none']}</span></span></h4>
+      <div class="muted">총 ${s.total || '?'}${fm.unit}${ed.totalUpdated ? ` (갱신 ${esc(ed.totalUpdated)})` : ''} · ${OWN_LABEL[s.status]}</div>
+      ${s.total ? `<div class="muted" style="margin-top:6px">소장 ${s.ownCount}/${s.total}</div><div class="bar own"><i style="width:${pct(s.ownCount)}%"></i></div>
+      <div class="muted">읽음 ${s.readCount}/${s.total}</div><div class="bar"><i style="width:${pct(s.readCount)}%"></i></div>` : `<div class="muted" style="margin-top:6px">소장 ${s.ownCount}${fm.unit} · 읽음 ${s.readCount}${fm.unit}</div>`}
+      ${(ed.holdings||[]).map(h => `<div class="ed">${HOLD_TYPE[h.type]||''} ${esc(h.range)} · ${esc(h.platform||'')}</div>`).join('')}
+      ${ed.read ? `<div class="ed">읽은 범위: ${esc(ed.read)}</div>` : ''}
+      ${s.unreadOwned ? `<div class="hint">안 본 소장분 ${s.unreadOwned}${fm.unit}</div>` : ''}
+      <div class="row" style="margin-top:8px"><button class="btn small" data-act="plusOne" data-id="${esc(w.id)}" data-f="${f}">＋1${fm.unit} 읽음</button></div></div>`;
+  }).join('');
+  const related = (w.related||[]).map(workById).filter(r => r && !r.deleted);
+  openSheet(`<div class="panel-head"><h3>작품</h3><div class="row"><button class="btn small" data-act="edit" data-id="${esc(w.id)}">편집</button><button class="iconbtn" data-act="close">✕</button></div></div>
+    <div class="row" style="align-items:flex-start;flex-wrap:nowrap">${coverEl(w,'cover')}
+      <div style="min-width:0"><div style="font-size:18px;font-weight:700">${esc(w.title)}</div>
+        ${(w.aliases||[]).length ? `<div class="muted">별칭: ${esc(w.aliases.join(', '))}</div>` : ''}
+        <div class="chips">${people.map(x => `<span class="chip small" data-act="searchFor" data-q="${esc(x.p.name)}">${ROLES[x.role]||''} ${esc(x.p.name)}</span>`).join('')}</div>
+        <button class="btn small" data-act="toggleWish" data-id="${esc(w.id)}">${w.wish ? '♥ 보고싶음 해제' : '♡ 보고싶음'}</button></div></div>
+    <div class="chips">${tags.map(t => `<span class="chip small" data-act="searchTag" data-id="${t.id}">${t.axis===GENRE_AXIS?'':'#'}${esc(t.name)}</span>`).join('')}</div>
+    ${w.memo ? `<div class="box" style="white-space:pre-wrap">${esc(w.memo)}</div>` : ''}
+    ${eds || '<div class="muted">등록된 형태가 없어요. 편집에서 웹툰·웹소·드시를 추가하세요.</div>'}
+    ${related.length ? `<div class="sec"><h2>관련 작품</h2></div>${related.map(r => workCard(r)).join('')}` : ''}`, () => render());
+  fillCovers($('#panel'));
+}
+
+/* ===== 편집 ===== */
+function blankEdition(f){ return {platform: platformsOf(f)[0] || '', serial:'complete', total:'', totalUpdated:'', watch:'none', read:'', holdings:[]}; }
+function startEdit(id){
+  const w = id ? workById(id) : null;
+  ui.draft = w ? clone(w) : {id:uid(), title:'', aliases:[], tags:[], people:[], wish:false, memo:'', related:[], editions:{}, hasImg:false, createdAt:now()};
+  ui.draft._isNew = !w;
+  ui.draft._enabled = Object.fromEntries(FMT_KEYS.map(f => [f, !!ui.draft.editions[f]]));
+  for(const f of FMT_KEYS) if(!ui.draft.editions[f]) ui.draft.editions[f] = blankEdition(f);
+  ui.draft._people = (ui.draft.people||[]).map(x => ({name: personById(x.id)?.name || '', role: x.role}));
+  ui.draftCover = null; ui.tagQuery = '';
+  renderEdit();
+}
+function platformOptions(f, cur){
+  const list = [...platformsOf(f)]; if(cur && !list.includes(cur)) list.push(cur); if(!list.includes('기타')) list.push('기타');
+  return list.map(p => `<option ${p===cur?'selected':''}>${esc(p)}</option>`).join('');
+}
+function renderEdit(){
+  const d = ui.draft;
+  const groups = AXES.filter(a => a !== GENRE_AXIS).map(axis => {
+    const ts = live(data.tags).filter(t => t.axis === axis); if(!ts.length) return '';
+    const n = ts.filter(t => d.tags.includes(t.id)).length;
+    return `<details class="axis" ${ui['axisOpen_'+axis]?'open':''} data-axis="${esc(axis)}"><summary>${esc(axis)} ${n ? `<b>(${n})</b>` : ''}</summary><div class="chips">${ts.map(t => `<span class="chip ${d.tags.includes(t.id)?'on':''}" data-act="toggleTag" data-id="${t.id}">${esc(t.name)}</span>`).join('')}</div></details>`;
+  }).join('');
+  const genres = live(data.tags).filter(t => t.axis === GENRE_AXIS);
+  const coverPreview = ui.draftCover?.url ? `<img class="cover" src="${ui.draftCover.url}" alt="">` : (ui.draftCover === 'remove' || !d.hasImg ? `<div class="cover">${esc((d.title||'?').charAt(0))}</div>` : coverEl(d,'cover'));
+  const edForms = FMT_KEYS.map(f => {
+    const ed = d.editions[f], fm = FORMATS[f], on = d._enabled[f];
+    const s = editionStats(ed);
+    const bad = [...parseRange(ed.read).bad, ...(ed.holdings||[]).flatMap(h => parseRange(h.range).bad)];
+    return `<div class="edbox"><h4><label><input type="checkbox" data-en="${f}" ${on?'checked':''}> ${fm.label}</label>${on ? `<span class="muted" style="font-size:12px" id="edStat-${f}">${OWN_LABEL[s.status]} · 소장 ${s.ownCount} · 읽음 ${s.readCount}</span>` : ''}</h4>
+      ${on ? `<div class="grid2">
+          <div><label class="f">플랫폼</label><select class="input" data-ef="${f}" data-k="platform">${platformOptions(f, ed.platform)}</select></div>
+          <div><label class="f">연재</label><select class="input" data-ef="${f}" data-k="serial"><option value="complete" ${ed.serial!=='ongoing'?'selected':''}>완결</option><option value="ongoing" ${ed.serial==='ongoing'?'selected':''}>연재 중</option></select></div>
+          <div><label class="f">총 ${fm.unit} 수</label><input class="input" type="number" min="0" inputmode="numeric" data-ef="${f}" data-k="total" value="${esc(ed.total)}"></div>
+          <div><label class="f">감상</label><select class="input" data-ef="${f}" data-k="watch">${Object.entries(WATCH).map(([k,l]) => `<option value="${k}" ${ed.watch===k?'selected':''}>${l}</option>`).join('')}</select></div></div>
+        <label class="f">읽은 범위 (예: 1-80, 95)</label><input class="input" data-ef="${f}" data-k="read" value="${esc(ed.read)}" placeholder="1-80">
+        <label class="f">보유 구간</label>
+        ${(ed.holdings||[]).map((h, i) => `<div class="hold-row" data-hf="${f}" data-i="${i}">
+            <input class="input" data-hk="range" value="${esc(h.range)}" placeholder="1-50">
+            <select class="input" data-hk="type">${Object.entries(HOLD_TYPE).map(([k,l]) => `<option value="${k}" ${h.type===k?'selected':''}>${l}</option>`).join('')}</select>
+            <select class="input" data-hk="platform">${platformOptions(f, h.platform)}</select>
+            <button class="iconbtn" data-act="delHold" data-f="${f}" data-i="${i}">✕</button></div>`).join('')}
+        <div class="row"><button class="btn small" data-act="addHold" data-f="${f}">＋ 구간</button><button class="btn small" data-act="fullOwn" data-f="${f}">전체 소장으로</button></div>
+        <div class="warntext" id="edBad-${f}">${bad.length ? `이해하지 못한 범위: ${esc(bad.join(', '))}` : ''}</div>` : ''}</div>`;
+  }).join('');
+  const otherWorks = live(data.works).filter(w => w.id !== d.id);
+  openSheet(`<div class="panel-head"><h3>${d._isNew ? '작품 추가' : '작품 편집'}</h3><div class="row"><button class="btn primary" data-act="saveWork">저장</button><button class="iconbtn" data-act="cancelEdit">✕</button></div></div>
+    <label class="f">제목</label><input class="input" data-k="title" value="${esc(d.title)}">
+    <label class="f">별칭 · 다른 제목 (쉼표로 구분)</label><input class="input" data-k="aliases" value="${esc((d.aliases||[]).join(', '))}">
+    <label class="f">표지</label><div class="row" style="align-items:flex-end">${coverPreview}
+      <div class="row"><button class="btn small" data-act="pickCover">이미지 선택</button>${(d.hasImg || ui.draftCover?.url) && ui.draftCover !== 'remove' ? '<button class="btn small danger" data-act="removeCover">삭제</button>' : ''}</div></div>
+    <input type="file" id="coverFile" accept="image/*" hidden>
+    <label style="display:block;margin-top:12px"><input type="checkbox" data-k="wish" ${d.wish?'checked':''}> ♡ 보고싶음 (할인 시 구매 후보)</label>
+    <label class="f">장르</label><div class="chips">${genres.map(t => `<span class="chip ${d.tags.includes(t.id)?'on':''}" data-act="toggleTag" data-id="${t.id}">${esc(t.name)}</span>`).join('')}</div>
+    <label class="f">요소 · 키워드</label>
+    <div class="chips">${d.tags.map(tagById).filter(t => t && !t.deleted && t.axis !== GENRE_AXIS).map(t => `<span class="chip on" data-act="toggleTag" data-id="${t.id}">${esc(t.name)}<span class="x">✕</span></span>`).join('') || '<span class="muted">선택한 태그 없음</span>'}</div>
+    <div class="row" style="flex-wrap:nowrap"><input class="input" id="tagInput" placeholder="태그 검색 또는 새로 만들기" value="${esc(ui.tagQuery||'')}" autocomplete="off">
+      <select class="input" id="tagAxis" style="width:120px">${AXES.filter(a => a !== GENRE_AXIS).map(a => `<option ${a==='기타'?'selected':''}>${esc(a)}</option>`).join('')}</select></div>
+    <div class="chips" id="tagSuggest"></div>
+    ${groups}
+    <label class="f">원작 작가 · 성우</label>
+    ${d._people.map((p, i) => `<div class="person-row" data-pi="${i}"><input class="input" list="peopleList" data-pk="name" value="${esc(p.name)}" placeholder="이름">
+      <select class="input" data-pk="role">${Object.entries(ROLES).map(([k,l]) => `<option value="${k}" ${p.role===k?'selected':''}>${l}</option>`).join('')}</select>
+      <button class="iconbtn" data-act="delPerson" data-i="${i}">✕</button></div>`).join('')}
+    <button class="btn small" data-act="addPerson">＋ 인물 추가</button>
+    <label class="f">메모</label><textarea class="input" data-k="memo" placeholder="추천받은 곳, 기억할 내용 등">${esc(d.memo)}</textarea>
+    <label class="f">형태별 정보</label>${edForms}
+    ${otherWorks.length ? `<details class="axis"><summary>관련 작품 ${(d.related||[]).length ? `<b>(${d.related.length})</b>` : ''}</summary><div class="chips">${otherWorks.map(w => `<span class="chip ${(d.related||[]).includes(w.id)?'on':''}" data-act="toggleRelated" data-id="${w.id}">${esc(w.title)}</span>`).join('')}</div></details>` : ''}
+    <div class="row" style="margin-top:16px"><button class="btn primary" data-act="saveWork">저장</button>${d._isNew ? '' : `<button class="btn danger" data-act="deleteWork">작품 삭제</button>`}</div>`,
+    () => { if(ui.draftCover?.url) URL.revokeObjectURL(ui.draftCover.url); ui.draft = null; ui.draftCover = null; render(); });
+  fillCovers($('#panel'));
+  const ti = $('#tagInput');
+  ti.addEventListener('input', () => { ui.tagQuery = ti.value; renderTagSuggest(); });
+  ti.addEventListener('keydown', e => { if(e.key === 'Enter'){ e.preventDefault(); addTagFromInput(); } });
+  renderTagSuggest();
+  $('#coverFile').onchange = async e => {
+    const file = e.target.files[0]; if(!file) return;
+    readForm();
+    try{ const blob = await compressImage(file); if(ui.draftCover?.url) URL.revokeObjectURL(ui.draftCover.url); ui.draftCover = {blob, url: URL.createObjectURL(blob)}; }
+    catch{ toast('이미지를 읽지 못했어요'); }
+    rerenderEdit();
+  };
+  $$('[data-en]').forEach(cb => cb.onchange = () => { readForm(); d._enabled[cb.dataset.en] = cb.checked; rerenderEdit(); });
+  $$('details.axis[data-axis]').forEach(dt => dt.addEventListener('toggle', () => { ui['axisOpen_'+dt.dataset.axis] = dt.open; }));
+  // 입력 중에는 화면을 다시 그리지 않고 상태 줄만 바꾼다 (다른 버튼 탭이 사라지지 않도록)
+  $('#panel').addEventListener('input', e => { if(e.target.closest('[data-ef], .hold-row')) updateEdStats(); });
+  $('#panel').addEventListener('change', e => { if(e.target.closest('.hold-row')) updateEdStats(); });
+}
+function updateEdStats(){
+  readForm();
+  for(const f of FMT_KEYS){
+    const st = $('#edStat-' + f); if(!st) continue;
+    const ed = ui.draft.editions[f]; const s = editionStats(ed);
+    st.textContent = `${OWN_LABEL[s.status]} · 소장 ${s.ownCount} · 읽음 ${s.readCount}`;
+    const bad = [...parseRange(ed.read).bad, ...(ed.holdings||[]).flatMap(h => parseRange(h.range).bad)];
+    $('#edBad-' + f).textContent = bad.length ? '이해하지 못한 범위: ' + bad.join(', ') : '';
+  }
+}
+function rerenderEdit(){ const top = $('#panel').scrollTop; const onClose = sheetOnClose; renderEdit(); sheetOnClose = onClose; $('#panel').scrollTop = top; }
+function renderTagSuggest(){
+  const q = (ui.tagQuery || '').trim(); const box = $('#tagSuggest'); if(!box) return;
+  if(!q){ box.innerHTML = ''; return; }
+  const d = ui.draft;
+  const m = live(data.tags).filter(t => textMatch(q, t.name)).slice(0, 15);
+  const exact = m.some(t => norm(t.name) === norm(q));
+  box.innerHTML = m.map(t => `<span class="chip ${d.tags.includes(t.id)?'on':''}" data-act="toggleTag" data-id="${t.id}" data-keepq="1">${esc(t.name)} <span class="muted" style="font-size:11px">${esc(t.axis)}</span></span>`).join('') +
+    (exact ? '' : `<span class="chip" data-act="createTag">＋ '${esc(q)}' 새로 만들기</span>`);
+}
+function addTagFromInput(){
+  const q = (ui.tagQuery || '').trim(); if(!q) return;
+  readForm();
+  const t = findTagByName(q) || ensureTag(q, $('#tagAxis').value);
+  if(!ui.draft.tags.includes(t.id)) ui.draft.tags.push(t.id);
+  ui.tagQuery = ''; rerenderEdit();
+}
+function readForm(){
+  const d = ui.draft; const p = $('#panel'); if(!d || !p) return;
+  const val = k => p.querySelector(`[data-k="${k}"]:not([data-ef])`);
+  d.title = val('title').value.trim();
+  d.aliases = val('aliases').value.split(',').map(s => s.trim()).filter(Boolean);
+  d.wish = val('wish').checked;
+  d.memo = val('memo').value;
+  d._people = $$('.person-row', p).map(r => ({name: r.querySelector('[data-pk="name"]').value.trim(), role: r.querySelector('[data-pk="role"]').value}));
+  for(const f of FMT_KEYS){
+    if(!d._enabled[f]) continue;
+    const ed = d.editions[f];
+    $$(`[data-ef="${f}"]`, p).forEach(el => { ed[el.dataset.k] = el.value; });
+    ed.holdings = $$(`.hold-row[data-hf="${f}"]`, p).map(r => ({range: r.querySelector('[data-hk="range"]').value.trim(), type: r.querySelector('[data-hk="type"]').value, platform: r.querySelector('[data-hk="platform"]').value}));
+  }
+}
+async function saveWork(){
+  readForm();
+  const d = ui.draft;
+  if(!d.title){ toast('제목을 입력해 주세요'); return; }
+  const dup = live(data.works).find(w => w.id !== d.id && norm(w.title) === norm(d.title));
+  if(dup && !confirm(`'${dup.title}'이(가) 이미 있어요. 그래도 저장할까요?`)) return;
+  const orig = workById(d.id);
+  const editions = {};
+  for(const f of FMT_KEYS){
+    if(!d._enabled[f]) continue;
+    const ed = d.editions[f];
+    ed.total = ed.total === '' ? '' : Math.max(0, parseInt(ed.total, 10) || 0);
+    const origTotal = orig?.editions?.[f]?.total;
+    if(ed.total !== '' && String(ed.total) !== String(origTotal ?? '')) ed.totalUpdated = today();
+    ed.read = ed.read ? formatSet(parseRange(ed.read).set) : '';
+    ed.holdings = (ed.holdings||[]).filter(h => h.range).map(h => ({...h, range: formatSet(parseRange(h.range).set) || h.range}));
+    if(ed.read && ed.watch === 'none') ed.watch = 'reading';
+    if(ed.total && ed.read && parseRange(ed.read).set.size >= ed.total && ed.watch !== 'done') ed.watch = 'done';
+    editions[f] = ed;
+  }
+  const people = [];
+  for(const p of d._people){ if(!p.name) continue; const person = ensurePerson(p.name); if(!people.some(x => x.id === person.id && x.role === p.role)) people.push({id: person.id, role: p.role}); }
+  const w = {id:d.id, title:d.title, aliases:d.aliases, tags:d.tags, people, wish:d.wish, memo:d.memo, related:d.related||[], editions,
+    hasImg: d.hasImg, imgAt: d.imgAt || 0, createdAt: d.createdAt || now(), updatedAt: now()};
+  if(ui.draftCover === 'remove'){ w.hasImg = false; w.imgAt = now(); await imgDel(w.id); dropURL(w.id); }
+  else if(ui.draftCover?.blob){ w.hasImg = true; w.imgAt = now(); await imgPut(w.id, {blob: ui.draftCover.blob, at: w.imgAt}); dropURL(w.id); }
+  const i = data.works.findIndex(x => x.id === w.id);
+  if(i >= 0) data.works[i] = w; else data.works.push(w);
+  await save();
+  ui.draft = null; if(ui.draftCover?.url) URL.revokeObjectURL(ui.draftCover.url); ui.draftCover = null;
+  toast('저장했어요');
+  renderDetail(w.id);
+}
+
+/* ===== 태그 고르기(검색 필터) ===== */
+function renderTagPicker(){
+  const sel = new Set(ui.fTags);
+  openSheet(`<div class="panel-head"><h3>태그로 찾기</h3><div class="row"><button class="btn primary" data-act="close">적용</button></div></div>
+    <div class="muted">고른 태그를 모두 가진 작품만 보여줘요. 괄호는 작품 수.</div>
+    ${AXES.map(axis => { const ts = live(data.tags).filter(t => t.axis === axis); if(!ts.length) return '';
+      return `<label class="f">${esc(axis)}</label><div class="chips">${ts.map(t => `<span class="chip ${sel.has(t.id)?'on':''}" data-act="pickTag" data-id="${t.id}">${esc(t.name)} <span style="opacity:.6">${tagCount(t.id)}</span></span>`).join('')}</div>`; }).join('')}`,
+    () => render());
+}
+
+/* ===== 태그 관리 ===== */
+function renderTagManager(){
+  openSheet(`<div class="panel-head"><h3>태그 관리</h3><button class="iconbtn" data-act="close">✕</button></div>
+    <div class="muted">이름을 바꾸면 모든 작품에 반영돼요. 합치기는 이 태그를 다른 태그로 옮기고 지워요.</div>
+    ${AXES.map(axis => { const ts = live(data.tags).filter(t => t.axis === axis); if(!ts.length) return '';
+      return `<label class="f">${esc(axis)}</label><div class="box">${ts.map(t => `<div class="taglist-row"><span>${esc(t.name)} <span class="muted">${tagCount(t.id)}</span></span>
+        <span class="row" style="gap:4px"><button class="btn small" data-act="tagRename" data-id="${t.id}">이름</button><button class="btn small" data-act="tagAxis" data-id="${t.id}">축</button><button class="btn small" data-act="tagMerge" data-id="${t.id}">합치기</button><button class="btn small danger" data-act="tagDelete" data-id="${t.id}">삭제</button></span></div>`).join('')}</div>`; }).join('')}
+    <div class="row" style="margin-top:12px"><button class="btn" data-act="tagNew">＋ 새 태그</button></div>`, () => render());
+}
+function renderPersonManager(){
+  const ps = live(data.people).sort((a,b) => a.name.localeCompare(b.name, 'ko'));
+  openSheet(`<div class="panel-head"><h3>인물 관리</h3><button class="iconbtn" data-act="close">✕</button></div>
+    <div class="box">${ps.map(p => `<div class="taglist-row"><span data-act="searchFor" data-q="${esc(p.name)}" style="cursor:pointer">${esc(p.name)} <span class="muted">${personCount(p.id)}작품</span></span>
+      <span class="row" style="gap:4px"><button class="btn small" data-act="personRename" data-id="${p.id}">이름</button><button class="btn small danger" data-act="personDelete" data-id="${p.id}">삭제</button></span></div>`).join('') || '<div class="muted">아직 없어요. 작품 편집에서 추가하세요.</div>'}</div>`, () => render());
+}
+
+/* ===== 가져오기 / 내보내기 ===== */
+function exportJson(){
+  const blob = new Blob([JSON.stringify(data, null, 1)], {type:'application/json'});
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `작품서재-${today()}.json`; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+// 이름으로 적힌 태그·인물도 받아들임 (일괄 등록용)
+function normalizeImported(inc){
+  const out = {works:[], tags: inc.tags || [], people: inc.people || [], scenes: inc.scenes || [], settings: inc.settings};
+  const t0 = now();
+  for(const t of out.tags) t.updatedAt ||= t0;
+  for(const p of out.people) p.updatedAt ||= t0;
+  const tagIds = new Set([...data.tags, ...out.tags].map(t => t.id));
+  const personIds = new Set([...data.people, ...out.people].map(p => p.id));
+  for(const w0 of inc.works || []){
+    const w = {aliases:[], tags:[], people:[], wish:false, memo:'', related:[], editions:{}, hasImg:false, ...w0};
+    w.id ||= uid(); w.updatedAt ||= t0; w.createdAt ||= t0;
+    w.tags = (w.tags||[]).map(x => tagIds.has(x) ? x : ensureTag(String(x), (w0.tagAxes||{})[x]).id);
+    w.people = (w.people||[]).map(x => typeof x === 'string' ? {id: ensurePerson(x).id, role:'author'} : (personIds.has(x.id) ? x : {id: ensurePerson(x.name || x.id).id, role: x.role || 'author'}));
+    for(const f of FMT_KEYS){ const ed = w.editions[f]; if(ed){ w.editions[f] = {...blankEdition(f), ...ed}; } }
+    delete w.tagAxes;
+    out.works.push(w);
+  }
+  return out;
+}
+async function importJson(e){
+  const file = e.target.files[0]; if(!file) return;
+  try{
+    const inc = normalizeImported(JSON.parse(await file.text()));
+    data = mergeData(data, inc);
+    await save(); toast(`가져왔어요 (작품 ${inc.works.length}개)`); render();
+  }catch(err){ alert('가져오기 실패: ' + err.message); }
+  e.target.value = '';
+}
+
+/* ===== 동기화 ===== */
+function mergeList(a = [], b = []){
+  const m = new Map(); for(const x of a) m.set(x.id, x);
+  for(const x of b){ const y = m.get(x.id); if(!y || (x.updatedAt||0) > (y.updatedAt||0)) m.set(x.id, x); }
+  return [...m.values()];
+}
+function mergeData(local, remote){
+  if(!remote) return local;
+  const s = (remote.settings?.updatedAt || 0) > (local.settings?.updatedAt || 0) ? remote.settings : local.settings;
+  return {version:1, works: mergeList(local.works, remote.works), tags: mergeList(local.tags, remote.tags), people: mergeList(local.people, remote.people),
+    scenes: mergeList(local.scenes, remote.scenes), settings: s || local.settings};
+}
+async function gas(action, extra = {}){
+  const res = await fetch(syncCfg.url, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body: JSON.stringify({key: syncCfg.key, action, ...extra})});
+  const j = await res.json(); if(!j.ok) throw new Error(j.error || '알 수 없는 오류'); return j;
+}
+const blobToB64 = blob => new Promise(res => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.readAsDataURL(blob); });
+const b64ToBlob = b64 => { const bin = atob(b64); const u = new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) u[i] = bin.charCodeAt(i); return new Blob([u], {type:'image/jpeg'}); };
+let syncing = false;
+function setSyncState(t){ $('#syncState').textContent = t; }
+async function sync(quiet){
+  if(!syncCfg.url || !syncCfg.key){ if(!quiet) toast('설정에서 동기화 주소와 키를 먼저 입력하세요'); return; }
+  if(syncing) return; if(!navigator.onLine){ setSyncState('오프라인'); return; }
+  syncing = true; setSyncState('동기화 중…');
+  try{
+    const r = await gas('getData');
+    if(r.data) data = mergeData(data, JSON.parse(r.data));
+    const {images} = await gas('listImages');
+    for(const w of data.works){
+      const remoteAt = images[w.id] || 0;
+      if(w.deleted || !w.hasImg){ if(remoteAt) await gas('deleteImage', {id: w.id}); continue; }
+      const loc = await imgGet(w.id);
+      if(loc && loc.at > remoteAt) await gas('putImage', {id: w.id, at: loc.at, b64: await blobToB64(loc.blob)});
+      else if(remoteAt && (!loc || remoteAt > loc.at)){ const g = await gas('getImage', {id: w.id}); if(g.b64){ await imgPut(w.id, {blob: b64ToBlob(g.b64), at: remoteAt}); dropURL(w.id); } }
+    }
+    await gas('putData', {data: JSON.stringify(data)});
+    await kvSet('data', data);
+    syncCfg.last = now(); await kvSet('sync', syncCfg);
+    setSyncState('동기화 ' + fmtTime(syncCfg.last));
+    if(!quiet) toast('동기화했어요');
+    if($('#sheet').classList.contains('hidden')) render();
+  }catch(err){ setSyncState('동기화 오류'); if(!quiet) alert('동기화 실패: ' + err.message); console.error(err); }
+  finally{ syncing = false; }
+}
+
+/* ===== 동작 ===== */
+const A = {
+  tab: el => { ui.tab = el.dataset.tab; window.scrollTo(0,0); render(); },
+  newWork: () => startEdit(null),
+  open: el => renderDetail(el.dataset.id),
+  close: () => closeSheet(),
+  edit: el => startEdit(el.dataset.id),
+  cancelEdit: () => { const id = ui.draft?._isNew ? null : ui.draft?.id; const onClose = sheetOnClose; sheetOnClose = null; if(ui.draftCover?.url) URL.revokeObjectURL(ui.draftCover.url); ui.draft = null; ui.draftCover = null; if(id) renderDetail(id); else { sheetOnClose = onClose; closeSheet(); } },
+  saveWork: () => saveWork(),
+  deleteWork: async () => { if(!confirm('이 작품을 삭제할까요?')) return; const w = workById(ui.draft.id); if(w){ w.deleted = true; w.updatedAt = now(); await save(); } ui.draft = null; closeSheet(); toast('삭제했어요'); },
+  fFormat: el => { const f = el.dataset.f; ui.fFormats = ui.fFormats.includes(f) ? ui.fFormats.filter(x => x !== f) : [...ui.fFormats, f]; renderSearch(); },
+  fOwn: el => { ui.fOwn = el.dataset.k; renderSearch(); },
+  fWish: () => { ui.fWish = !ui.fWish; renderSearch(); },
+  fTagRemove: el => { ui.fTags = ui.fTags.filter(x => x !== el.dataset.id); renderSearch(); },
+  fReset: () => { ui.q = ''; ui.fFormats = []; ui.fOwn = ''; ui.fWish = false; ui.fTags = []; renderSearch(); },
+  tagPicker: () => renderTagPicker(),
+  pickTag: el => { const id = el.dataset.id; ui.fTags = ui.fTags.includes(id) ? ui.fTags.filter(x => x !== id) : [...ui.fTags, id]; el.classList.toggle('on'); },
+  searchFor: el => { ui.q = el.dataset.q; ui.tab = 'search'; closeSheet(); },
+  searchTag: el => { ui.q = ''; ui.fTags = [el.dataset.id]; ui.tab = 'search'; closeSheet(); },
+  more: el => { ui['more_'+el.dataset.k] = !ui['more_'+el.dataset.k]; renderDash(); },
+  libSort: el => { ui.libSort = el.dataset.k; renderLibrary(); },
+  toggleWish: async el => { const w = workById(el.dataset.id); w.wish = !w.wish; w.updatedAt = now(); await save(); renderDetail(w.id); },
+  plusOne: async el => {
+    const w = workById(el.dataset.id), f = el.dataset.f, ed = w.editions[f];
+    const s = editionStats(ed); const next = s.maxRead + 1;
+    if(s.total && next > s.total){ toast('이미 마지막까지 읽었어요'); return; }
+    s.read.add(next); ed.read = formatSet(s.read);
+    if(ed.watch === 'none') ed.watch = 'reading';
+    if(s.total && s.read.size >= s.total) ed.watch = 'done';
+    w.updatedAt = now(); await save(); toast(`${FORMATS[f].label} ${next}${FORMATS[f].unit} 읽음`); renderDetail(w.id);
+  },
+  toggleTag: el => {
+    if(!el.dataset.keepq) readForm();
+    const d = ui.draft, id = el.dataset.id;
+    d.tags = d.tags.includes(id) ? d.tags.filter(x => x !== id) : [...d.tags, id];
+    if(el.dataset.keepq){ readForm(); ui.tagQuery = ''; }
+    rerenderEdit();
+  },
+  createTag: () => addTagFromInput(),
+  toggleRelated: el => { const d = ui.draft, id = el.dataset.id; d.related = (d.related||[]).includes(id) ? d.related.filter(x => x !== id) : [...(d.related||[]), id]; el.classList.toggle('on'); },
+  addPerson: () => { readForm(); ui.draft._people.push({name:'', role: ui.draft._enabled.drama ? 'voice' : 'author'}); rerenderEdit(); },
+  delPerson: el => { readForm(); ui.draft._people.splice(+el.dataset.i, 1); rerenderEdit(); },
+  addHold: el => { readForm(); const f = el.dataset.f, ed = ui.draft.editions[f]; ed.holdings.push({range:'', type:'own', platform: ed.platform}); rerenderEdit(); },
+  delHold: el => { readForm(); ui.draft.editions[el.dataset.f].holdings.splice(+el.dataset.i, 1); rerenderEdit(); },
+  fullOwn: el => {
+    readForm(); const ed = ui.draft.editions[el.dataset.f]; const t = parseInt(ed.total, 10);
+    if(!t){ toast('총 화수를 먼저 입력해 주세요'); return; }
+    ed.holdings = [{range:`1-${t}`, type:'own', platform: ed.platform}]; rerenderEdit();
+  },
+  pickCover: () => $('#coverFile').click(),
+  removeCover: () => { readForm(); if(ui.draftCover?.url) URL.revokeObjectURL(ui.draftCover.url); ui.draftCover = 'remove'; rerenderEdit(); },
+  saveSync: async () => { syncCfg.url = $('#sUrl').value.trim(); syncCfg.key = $('#sKey').value.trim(); await kvSet('sync', syncCfg); toast('저장했어요'); },
+  syncNow: async () => { if(ui.tab === 'settings' && $('#sUrl')){ syncCfg.url = $('#sUrl').value.trim(); syncCfg.key = $('#sKey').value.trim(); await kvSet('sync', syncCfg); } sync(false); },
+  savePlat: async () => { for(const el of $$('[data-plat]')) data.settings.platforms[el.dataset.plat] = el.value.split(',').map(s => s.trim()).filter(Boolean); data.settings.updatedAt = now(); await save(); toast('저장했어요'); },
+  exportJson: () => exportJson(),
+  importJson: () => $('#importFile').click(),
+  tagManager: () => renderTagManager(),
+  personManager: () => renderPersonManager(),
+  tagRename: async el => { const t = tagById(el.dataset.id); const n = prompt('새 이름', t.name); if(!n || !n.trim() || n.trim() === t.name) return;
+    const other = findTagByName(n); if(other && other.id !== t.id){ toast('같은 이름의 태그가 있어요. 합치기를 쓰세요'); return; }
+    t.name = n.trim(); t.updatedAt = now(); await save(); renderTagManager(); },
+  tagAxis: async el => { const t = tagById(el.dataset.id); const n = prompt(`옮길 축 이름\n(${AXES.join(', ')})`, t.axis); if(!n || !AXES.includes(n.trim())){ if(n) toast('목록에 있는 축 이름을 입력해 주세요'); return; }
+    t.axis = n.trim(); t.updatedAt = now(); await save(); renderTagManager(); },
+  tagMerge: async el => { const t = tagById(el.dataset.id); const n = prompt(`'${t.name}'을(를) 어느 태그로 합칠까요? (태그 이름)`); if(!n) return;
+    const target = findTagByName(n); if(!target || target.id === t.id){ toast('그 이름의 태그를 찾지 못했어요'); return; }
+    for(const w of data.works){ if((w.tags||[]).includes(t.id)){ w.tags = [...new Set(w.tags.map(x => x === t.id ? target.id : x))]; w.updatedAt = now(); } }
+    t.deleted = true; t.updatedAt = now(); await save(); toast(`'${target.name}'(으)로 합쳤어요`); renderTagManager(); },
+  tagDelete: async el => { const t = tagById(el.dataset.id); const c = tagCount(t.id); if(!confirm(`'${t.name}' 삭제${c ? ` (작품 ${c}개에서 빠져요)` : ''}?`)) return;
+    for(const w of data.works){ if((w.tags||[]).includes(t.id)){ w.tags = w.tags.filter(x => x !== t.id); w.updatedAt = now(); } }
+    t.deleted = true; t.updatedAt = now(); await save(); renderTagManager(); },
+  tagNew: async () => { const n = prompt('새 태그 이름'); if(!n || !n.trim()) return; if(findTagByName(n)){ toast('이미 있는 태그예요'); return; }
+    const a = prompt(`축 이름\n(${AXES.join(', ')})`, '기타'); ensureTag(n, AXES.includes((a||'').trim()) ? a.trim() : '기타'); await save(); renderTagManager(); },
+  personRename: async el => { const p = personById(el.dataset.id); const n = prompt('새 이름', p.name); if(!n || !n.trim()) return; p.name = n.trim(); p.updatedAt = now(); await save(); renderPersonManager(); },
+  personDelete: async el => { const p = personById(el.dataset.id); const c = personCount(p.id); if(!confirm(`'${p.name}' 삭제${c ? ` (작품 ${c}개에서 빠져요)` : ''}?`)) return;
+    for(const w of data.works){ if((w.people||[]).some(x => x.id === p.id)){ w.people = w.people.filter(x => x.id !== p.id); w.updatedAt = now(); } }
+    p.deleted = true; p.updatedAt = now(); await save(); renderPersonManager(); }
+};
+document.addEventListener('click', e => {
+  const el = e.target.closest('[data-act]'); if(!el) return;
+  const fn = A[el.dataset.act]; if(fn){ e.preventDefault(); fn(el, e); }
+});
+
+/* ===== 시작 ===== */
+(async function init(){
+  try{ data = await kvGet('data'); }catch(e){ console.error(e); }
+  if(!data){ data = emptyData(); await kvSet('data', data); }
+  data.scenes ||= []; data.settings ||= {platforms: clone(DEFAULT_PLATFORMS), updatedAt:1}; data.settings.platforms ||= clone(DEFAULT_PLATFORMS);
+  syncCfg = (await kvGet('sync')) || syncCfg;
+  setSyncState(syncCfg.url ? (syncCfg.last ? '동기화 ' + fmtTime(syncCfg.last) : '동기화 안 됨') : '');
+  render();
+  if(syncCfg.url && syncCfg.key) sync(true);
+  if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
+})();
+window.__app = {get data(){ return data; }, parseRange, formatSet, editionStats, cho, textMatch, mergeData};
+</script>
+</body>
+</html>
