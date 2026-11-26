@@ -95,17 +95,44 @@ details.axis summary{cursor:pointer;font-size:14px}
   padding:8px 14px;border-radius:10px;font-size:14px;z-index:30;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw}
 #toast.show{opacity:.95}
 .warntext{color:var(--bad);font-size:12px}
+.pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px}
+.pill{font-size:12px;padding:1px 8px;border-radius:6px;border:1px solid transparent;white-space:nowrap}
+.pill.full{background:rgba(47,143,91,.14);color:var(--good)}
+.pill.part{background:rgba(183,121,31,.15);color:var(--warn)}
+.pill.rent{border-color:var(--line);color:var(--sub)}
+.pill.none{border:1px dashed var(--line);color:var(--sub)}
+.heart{color:var(--bad)}
+.card{align-items:center}
+.thumb{width:48px;height:66px;font-size:18px}
+.thumb.sm{width:42px;height:58px;font-size:16px}
+.pcard .left{flex:none;display:flex;flex-direction:column;align-items:flex-end;gap:6px}
+.big{font-size:22px;font-weight:700;line-height:1;white-space:nowrap}
+.big small{font-size:12px;font-weight:500;color:var(--sub);margin-left:2px}
+.prow{display:flex;align-items:center;gap:6px;margin-top:6px}
+.prow .bar{flex:1;margin:0}
+.pct{font-size:12px;color:var(--sub);min-width:32px;text-align:right}
+.strip{display:flex;gap:10px;overflow-x:auto;padding:4px 2px 8px;scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch}
+.strip .tile{width:92px;flex:none;scroll-snap-align:start}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:14px 10px;margin-top:8px}
+.tile{cursor:pointer;min-width:0}
+.tcov{position:relative}
+.tcover{width:100%;aspect-ratio:3/4;border-radius:10px;object-fit:cover;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:700;font-size:26px}
+.tbadge{position:absolute;left:4px;bottom:4px;background:rgba(0,0,0,.68);color:#fff;font-size:11px;padding:1px 6px;border-radius:6px;max-width:calc(100% - 8px);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.theart{position:absolute;right:5px;top:3px;color:#e0566b;text-shadow:0 0 2px #fff,0 0 2px #fff;font-size:14px}
+.tt{font-size:13px;margin-top:5px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ts{font-size:11px;color:var(--sub);margin-top:1px}
+.sec h2 .muted{font-weight:400}
 .taglist-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);gap:6px}
 .taglist-row:last-child{border-bottom:0}
 </style>
 </head>
 <body>
-<header><h1 id="ttl">검색</h1><span id="syncState" data-act="syncNow"></span></header>
+<header><h1 id="ttl">홈</h1><span id="syncState" data-act="syncNow"></span></header>
 <main id="view"></main>
 <button class="fab" id="fab" data-act="newWork" aria-label="작품 추가">＋</button>
 <nav class="tabbar">
+  <button data-act="tab" data-tab="home"><b>⌂</b>홈</button>
   <button data-act="tab" data-tab="search"><b>⌕</b>검색</button>
-  <button data-act="tab" data-tab="dash"><b>◔</b>대시보드</button>
   <button data-act="tab" data-tab="library"><b>☰</b>서재</button>
   <button data-act="tab" data-tab="settings"><b>⚙</b>설정</button>
 </nav>
@@ -119,14 +146,14 @@ details.axis summary{cursor:pointer;font-size:14px}
 const FORMATS = {
   webtoon:{label:'웹툰', unit:'화'},
   novel:{label:'웹소', unit:'화'},
-  drama:{label:'드시', unit:'트랙'}
+  drama:{label:'드씨', unit:'트랙'}
 };
 const FMT_KEYS = Object.keys(FORMATS);
 const DEFAULT_PLATFORMS = {webtoon:['봄툰','레진','미블','리디'], novel:['리디','봄툰','미블'], drama:['아코','플링','밤바다']};
 const GENRE_AXIS = '장르';
 const AXES = ['장르','장면·사건','관계','설정·배경','분위기','공 속성','수 속성','기타'];
 const SEED_TAGS = {
-  '장르':['로맨스','BL','GL','판타지','드라마','스릴러·미스터리','개그·일상','느와르','아포칼립스','스포츠','힐링'],
+  '장르':['로맨스','BL','GL','판타지','드라마','스릴러·미스터리','개그·일상','느와르','아포칼립스','스포츠','힐링','단편'],
   '장면·사건':['첫만남','재회','다툼','화해','고백','질투','오해','이별','구출','정체 발각'],
   '관계':['소꿉친구','계약 관계','적에서 연인','짝사랑','구원'],
   '설정·배경':['동양물','서양풍','오피스','캠퍼스','학원','회귀·빙의·환생','오메가버스','센티넬버스'],
@@ -137,7 +164,7 @@ const SEED_TAGS = {
 const WATCH = {none:'안 봄', reading:'보는 중', done:'완독'};
 const OWN_LABEL = {full:'전체 소장', part:'일부 소장', rent:'대여·기다무', none:'미보유'};
 const HOLD_TYPE = {own:'소장', rent:'대여·기다무'};
-const ROLES = {author:'원작 작가', voice:'성우'};
+const ROLES = {author:'작가', voice:'성우'};
 const STALE_DAYS = 30;
 
 /* ===== 유틸 ===== */
@@ -282,22 +309,48 @@ async function fillCovers(root=document){
 function coverEl(w, cls){ return `<div class="${cls}" data-cover="${esc(w.id)}">${esc((w.title||'?').trim().charAt(0))}</div>`; }
 
 /* ===== 상태 ===== */
-const ui = {tab:'search', q:'', fFormats:[], fOwn:'', fWish:false, fTags:[], libFormat:'', libPlatform:'', libSort:'title', draft:null, draftCover:null};
+const ui = {tab:'home', libView:'grid', q:'', fFormats:[], fOwn:'', fWish:false, fTags:[], libFormat:'', libPlatform:'', libSort:'title', draft:null, draftCover:null};
 
 /* ===== 공통 표시 ===== */
-function edLine(f, ed, s){
-  const fm = FORMATS[f];
-  const ownTxt = s.ownCount ? (s.total ? ` ${s.ownCount}/${s.total}` : ` ${s.ownCount}${fm.unit}`) : '';
-  const readTxt = s.readCount ? ` · 읽음 ${s.readCount}${s.total ? '/' + s.total : ''}` : '';
-  return `<div class="ed"><span class="f">${fm.label}</span> ${esc(ed.platform || '')} · ${OWN_LABEL[s.status]}${ownTxt} · ${WATCH[ed.watch||'none']}${readTxt}</div>`;
+const OWN_SHORT = {full:'소장', part:'일부', rent:'대여', none:'미보유'};
+// 감상 진행: 총 화수를 알 때만 %와 남은 수를 계산
+function progressOf(s){ return s.total ? {pct: Math.round(Math.min(1, s.readCount / s.total) * 100), left: Math.max(0, s.total - s.readCount)} : {pct:null, left:null}; }
+// 형태별 한 줄 배지: 색 = 보유 상태, 글자 = 형태 + 보유 + 감상
+function pills(w, st){
+  return FMT_KEYS.filter(f => w.editions?.[f]).map(f => {
+    const ed = w.editions[f], s = st.eds[f], r = progressOf(s);
+    const watch = ed.watch === 'done' ? '완독' : ed.watch === 'reading' ? (r.pct != null ? r.pct + '%' : '보는 중') : '';
+    return `<span class="pill ${s.status}">${FORMATS[f].label} ${OWN_SHORT[s.status]}${watch ? ' · ' + watch : ''}</span>`;
+  }).join('');
 }
 function workCard(w, hint=''){
   const st = workStats(w);
-  const eds = FMT_KEYS.filter(f => w.editions?.[f]).map(f => edLine(f, w.editions[f], st.eds[f])).join('') || '<div class="ed">등록된 형태 없음</div>';
-  const tagNames = (w.tags||[]).map(tagById).filter(t => t && !t.deleted).slice(0, 5).map(t => t.name).join(' · ');
   return `<div class="card" data-act="open" data-id="${esc(w.id)}">${coverEl(w,'thumb')}
-    <div class="body"><div class="t">${esc(w.title)} ${w.wish ? '<span style="color:var(--bad)">♡</span>' : ''}</div>${eds}
-    ${tagNames ? `<div class="muted" style="font-size:12px;margin-top:3px">${esc(tagNames)}</div>` : ''}${hint ? `<div class="hint">${hint}</div>` : ''}</div></div>`;
+    <div class="body"><div class="t">${esc(w.title)}${w.wish ? ' <span class="heart">♡</span>' : ''}</div>
+    <div class="pills">${pills(w, st) || '<span class="muted">형태 없음</span>'}</div>
+    ${hint ? `<div class="hint">${hint}</div>` : ''}</div></div>`;
+}
+// 이어보기 카드: 남은 수는 숫자로, 진행도는 막대로
+function progressCard(w, f){
+  const ed = w.editions[f], s = editionStats(ed), r = progressOf(s), u = FORMATS[f].unit;
+  const big = r.left != null ? (r.left === 0 ? '끝' : `${r.left}<small>${u} 남음</small>`) : `${s.maxRead}<small>${u}까지</small>`;
+  return `<div class="card pcard" data-act="open" data-id="${esc(w.id)}">${coverEl(w,'thumb sm')}
+    <div class="body"><div class="t">${esc(w.title)}</div><div class="muted">${FORMATS[f].label} · ${esc(ed.platform||'')}</div>
+      ${r.pct != null ? `<div class="prow"><div class="bar"><i style="width:${r.pct}%"></i></div><span class="pct">${r.pct}%</span></div>` : '<div class="muted" style="font-size:12px">총 화수를 넣으면 진행도가 보여요</div>'}</div>
+    <div class="left"><div class="big">${big}</div><button class="btn small" data-act="plusOne" data-id="${esc(w.id)}" data-f="${f}" data-from="list">＋1</button></div></div>`;
+}
+// 표지 타일: 가로 줄·서재 격자용
+function coverTile(w, badge='', sub=''){
+  return `<div class="tile" data-act="open" data-id="${esc(w.id)}"><div class="tcov">${coverEl(w,'tcover')}${badge ? `<span class="tbadge">${badge}</span>` : ''}${w.wish ? '<span class="theart">♡</span>' : ''}</div>
+    <div class="tt">${esc(w.title)}</div>${sub ? `<div class="ts">${sub}</div>` : ''}</div>`;
+}
+const strip = list => `<div class="strip">${list.map(x => coverTile(x.w, x.badge)).join('')}</div>`;
+// 보는 중인 형태 중 남은 수가 가장 적은 것
+function nearestEnd(w){
+  let best = null;
+  for(const f of FMT_KEYS){ const ed = w.editions?.[f]; if(!ed || ed.watch !== 'reading') continue; const r = progressOf(editionStats(ed));
+    const left = r.left ?? Infinity; if(!best || left < best.left) best = {f, left, pct: r.pct}; }
+  return best;
 }
 
 /* ===== 검색 ===== */
@@ -360,39 +413,41 @@ function renderResults(){
   fillCovers($('#results'));
 }
 
-/* ===== 대시보드 ===== */
-function renderDash(){
+/* ===== 홈 ===== */
+function renderHome(){
   const works = live(data.works);
+  if(!works.length){
+    $('#view').innerHTML = `<div class="empty">아직 등록한 작품이 없어요.<br><br><button class="btn primary" data-act="newWork">첫 작품 추가</button><br><br><span class="muted">JSON 파일이 있다면 설정 → 가져오기</span></div>`;
+    return;
+  }
   const reading = [], unread = [], wish = [], other = [], stale = [];
   const limit = Date.now() - STALE_DAYS * 864e5;
   for(const w of works){
     const st = workStats(w); const eds = FMT_KEYS.filter(f => w.editions?.[f]);
-    const rf = eds.filter(f => w.editions[f].watch === 'reading');
-    if(rf.length) reading.push({w, hint: rf.map(f => { const s = st.eds[f]; return `${FORMATS[f].label} ${s.maxRead}${FORMATS[f].unit}까지`; }).join(' · ')});
-    if(st.unreadOwned) unread.push({w, n: st.unreadOwned, hint:`안 본 소장분 ${st.unreadOwned}`});
+    for(const f of eds){ if(w.editions[f].watch === 'reading'){ const r = progressOf(st.eds[f]); reading.push({w, f, left: r.left ?? Infinity}); } }
+    if(st.unreadOwned) unread.push({w, n: st.unreadOwned, badge:`안 본 ${st.unreadOwned}`});
     if(w.wish){
-      if(!eds.length || eds.some(f => st.eds[f].status !== 'full')) wish.push({w, hint:''});
+      if(!eds.length || eds.some(f => st.eds[f].status !== 'full')) wish.push({w, badge:''});
       const done = eds.filter(f => w.editions[f].watch === 'done'), notDone = eds.filter(f => w.editions[f].watch !== 'done');
-      if(done.length && notDone.length) other.push({w, hint:`${done.map(f => FORMATS[f].label).join('·')} 완독 → ${notDone.map(f => FORMATS[f].label).join('·')}`});
+      if(done.length && notDone.length) other.push({w, badge:`→ ${notDone.map(f => FORMATS[f].label).join('·')}`});
     }
-    for(const f of eds){ const ed = w.editions[f]; if(ed.serial === 'ongoing' && (!ed.totalUpdated || Date.parse(ed.totalUpdated) < limit)){ stale.push({w, hint:`${FORMATS[f].label} 총 화수 갱신일: ${ed.totalUpdated || '없음'}`}); break; } }
+    for(const f of eds){ const ed = w.editions[f]; if(ed.serial === 'ongoing' && (!ed.totalUpdated || Date.parse(ed.totalUpdated) < limit)){ stale.push({w, f, d: ed.totalUpdated}); break; } }
   }
+  reading.sort((a,b) => a.left - b.left || a.w.title.localeCompare(b.w.title, 'ko'));
   unread.sort((a,b) => b.n - a.n);
   const genres = live(data.tags).filter(t => t.axis === GENRE_AXIS).map(t => ({t, n: tagCount(t.id)})).filter(x => x.n).sort((a,b) => b.n - a.n);
   const maxG = genres[0]?.n || 1;
-  const block = (title, list, key) => {
-    const open = ui['more_'+key]; const shown = open ? list : list.slice(0, 5);
-    return `<div class="sec"><h2>${title}</h2><span class="muted">${list.length}</span></div>` +
-      (list.length ? shown.map(x => workCard(x.w, x.hint)).join('') + (list.length > 5 ? `<button class="btn small" data-act="more" data-k="${key}">${open ? '접기' : '전체 보기'}</button>` : '') : '<div class="muted">없음</div>');
-  };
-  const totalEds = FMT_KEYS.map(f => `${FORMATS[f].label} ${works.filter(w => w.editions?.[f]).length}`).join(' · ');
-  $('#view').innerHTML = `<div class="box"><b>작품 ${works.length}개</b><div class="muted">${totalEds}</div></div>` +
-    block('보는 중', reading, 'reading') +
-    block('사놓고 안 본 부분', unread, 'unread') +
-    block('♡ 구매 후보', wish, 'wish') +
-    block('다른 형태로도 보고 싶은 작품', other, 'other') +
-    block('연재 중 · 총 화수 확인 필요', stale, 'stale') +
-    `<div class="sec"><h2>장르 분포</h2></div><div class="box">${genres.map(g => `<div class="gbar"><span>${esc(g.t.name)}</span><div class="bar"><i style="width:${g.n/maxG*100}%"></i></div><span>${g.n}</span></div>`).join('') || '<div class="muted">장르 태그가 붙은 작품이 없어요</div>'}</div>`;
+  const sec = (title, n, note='') => `<div class="sec"><h2>${title} <span class="muted">${n}</span></h2>${note ? `<span class="muted">${note}</span>` : ''}</div>`;
+  const showAll = ui.more_reading, shown = showAll ? reading : reading.slice(0, 5);
+  const counts = FMT_KEYS.map(f => `${FORMATS[f].label} ${works.filter(w => w.editions?.[f]).length}`).join(' · ');
+  $('#view').innerHTML = `<div class="muted" style="margin-bottom:4px">작품 ${works.length} · ${counts}</div>` +
+    sec('이어보기', reading.length, '남은 화가 적은 순') +
+    (reading.length ? shown.map(x => progressCard(x.w, x.f)).join('') + (reading.length > 5 ? `<button class="btn small" data-act="more" data-k="reading">${showAll ? '접기' : `${reading.length - 5}개 더 보기`}</button>` : '') : '<div class="muted">보는 중인 작품이 없어요</div>') +
+    (unread.length ? sec('사놓고 안 본 작품', unread.length, '안 본 화가 많은 순') + strip(unread) : '') +
+    (wish.length ? sec('♡ 구매 후보', wish.length) + strip(wish) : '') +
+    (other.length ? sec('다른 형태로도 보고 싶은 작품', other.length) + strip(other) : '') +
+    (stale.length ? sec('연재 중 · 총 화수 확인', stale.length) + `<div class="box">${stale.map(x => `<div class="taglist-row" data-act="open" data-id="${esc(x.w.id)}" style="cursor:pointer"><span>${esc(x.w.title)}</span><span class="muted">${FORMATS[x.f].label} · ${x.d ? esc(x.d) + ' 갱신' : '갱신 기록 없음'}</span></div>`).join('')}</div>` : '') +
+    `<details class="axis" style="margin-top:18px"><summary>장르 분포</summary>${genres.map(g => `<div class="gbar"><span>${esc(g.t.name)}</span><div class="bar"><i style="width:${g.n/maxG*100}%"></i></div><span>${g.n}</span></div>`).join('') || '<div class="muted">장르 태그가 붙은 작품이 없어요</div>'}</details>`;
   fillCovers();
 }
 
@@ -401,14 +456,28 @@ function renderLibrary(){
   const allPlat = [...new Set(live(data.works).flatMap(w => FMT_KEYS.map(f => w.editions?.[f]?.platform).filter(Boolean)))];
   let list = live(data.works).filter(w => (!ui.libFormat || w.editions?.[ui.libFormat]) &&
     (!ui.libPlatform || FMT_KEYS.some(f => w.editions?.[f]?.platform === ui.libPlatform && (!ui.libFormat || f === ui.libFormat))));
-  if(ui.libSort === 'title') list.sort((a,b) => a.title.localeCompare(b.title, 'ko'));
-  else if(ui.libSort === 'updated') list.sort((a,b) => b.updatedAt - a.updatedAt);
-  else list = list.map(w => ({w, n: workStats(w).unreadOwned})).sort((a,b) => b.n - a.n).map(x => x.w);
+  const byTitle = (a,b) => a.title.localeCompare(b.title, 'ko');
+  let items = list.map(w => ({w, badge:''}));
+  if(ui.libSort === 'title') items.sort((a,b) => byTitle(a.w,b.w));
+  else if(ui.libSort === 'updated') items.sort((a,b) => b.w.updatedAt - a.w.updatedAt);
+  else if(ui.libSort === 'remain'){
+    items = items.map(x => { const n = nearestEnd(x.w); return {...x, n, badge: n ? (n.left === Infinity ? '보는 중' : `${n.left}${FORMATS[n.f].unit} 남음`) : ''}; });
+    items.sort((a,b) => (a.n ? a.n.left : 1e9 + 1) - (b.n ? b.n.left : 1e9 + 1) || byTitle(a.w,b.w));
+  } else {
+    items = items.map(x => { const n = workStats(x.w).unreadOwned; return {...x, n, badge: n ? `안 본 ${n}` : ''}; });
+    items.sort((a,b) => b.n - a.n || byTitle(a.w,b.w));
+  }
+  const sub = w => FMT_KEYS.filter(f => w.editions?.[f]).map(f => FORMATS[f].label).join('·');
+  const body = ui.libView === 'grid'
+    ? `<div class="grid">${items.map(x => coverTile(x.w, x.badge, sub(x.w))).join('')}</div>`
+    : items.map(x => workCard(x.w, x.badge)).join('');
   $('#view').innerHTML = `<div class="grid2">
       <select class="input" id="libFormat"><option value="">모든 형태</option>${FMT_KEYS.map(f => `<option value="${f}" ${ui.libFormat===f?'selected':''}>${FORMATS[f].label}</option>`).join('')}</select>
       <select class="input" id="libPlatform"><option value="">모든 플랫폼</option>${allPlat.map(p => `<option ${ui.libPlatform===p?'selected':''}>${esc(p)}</option>`).join('')}</select></div>
-    <div class="chips">${[['title','제목순'],['updated','최근 수정'],['unread','안 본 소장분 많은 순']].map(([k,l]) => `<span class="chip ${ui.libSort===k?'on':''}" data-act="libSort" data-k="${k}">${l}</span>`).join('')}</div>
-    <div class="muted">${list.length}개 작품</div>${list.map(w => workCard(w)).join('') || '<div class="empty">작품이 없어요</div>'}`;
+    <div class="chips">${[['title','제목순'],['remain','엔딩 가까운 순'],['unread','안 본 소장분 많은 순'],['updated','최근 수정']].map(([k,l]) => `<span class="chip ${ui.libSort===k?'on':''}" data-act="libSort" data-k="${k}">${l}</span>`).join('')}</div>
+    <div class="row" style="justify-content:space-between"><span class="muted">${items.length}개 작품</span>
+      <span class="row" style="gap:4px"><span class="chip small ${ui.libView==='grid'?'on':''}" data-act="libView" data-k="grid">▦ 표지</span><span class="chip small ${ui.libView==='list'?'on':''}" data-act="libView" data-k="list">☰ 목록</span></span></div>
+    ${items.length ? body : '<div class="empty">작품이 없어요</div>'}`;
   $('#libFormat').onchange = e => { ui.libFormat = e.target.value; renderLibrary(); };
   $('#libPlatform').onchange = e => { ui.libPlatform = e.target.value; renderLibrary(); };
   fillCovers();
@@ -437,12 +506,12 @@ function renderSettings(){
 }
 
 /* ===== 라우팅 ===== */
-const TITLES = {search:'검색', dash:'대시보드', library:'서재', settings:'설정'};
+const TITLES = {home:'홈', search:'검색', library:'서재', settings:'설정'};
 function render(){
   $('#ttl').textContent = TITLES[ui.tab];
   $$('nav.tabbar button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
-  $('#fab').style.display = (ui.tab === 'search' || ui.tab === 'library') && live(data.works).length ? '' : 'none';
-  ({search:renderSearch, dash:renderDash, library:renderLibrary, settings:renderSettings})[ui.tab]();
+  $('#fab').style.display = ui.tab !== 'settings' && live(data.works).length ? '' : 'none';
+  ({home:renderHome, search:renderSearch, library:renderLibrary, settings:renderSettings})[ui.tab]();
   $('#peopleList').innerHTML = live(data.people).map(p => `<option value="${esc(p.name)}">`).join('');
 }
 
@@ -465,7 +534,7 @@ function renderDetail(id){
         <span><span class="badge ${ed.serial==='ongoing'?'warn':'good'}">${ed.serial==='ongoing'?'연재 중':'완결'}</span> <span class="badge">${WATCH[ed.watch||'none']}</span></span></h4>
       <div class="muted">총 ${s.total || '?'}${fm.unit}${ed.totalUpdated ? ` (갱신 ${esc(ed.totalUpdated)})` : ''} · ${OWN_LABEL[s.status]}</div>
       ${s.total ? `<div class="muted" style="margin-top:6px">소장 ${s.ownCount}/${s.total}</div><div class="bar own"><i style="width:${pct(s.ownCount)}%"></i></div>
-      <div class="muted">읽음 ${s.readCount}/${s.total}</div><div class="bar"><i style="width:${pct(s.readCount)}%"></i></div>` : `<div class="muted" style="margin-top:6px">소장 ${s.ownCount}${fm.unit} · 읽음 ${s.readCount}${fm.unit}</div>`}
+      <div class="muted">읽음 ${s.readCount}/${s.total} · ${Math.round(pct(s.readCount))}%${s.readCount < s.total ? ` · <b style="color:var(--ink)">${s.total - s.readCount}${fm.unit} 남음</b>` : ''}</div><div class="bar"><i style="width:${pct(s.readCount)}%"></i></div>` : `<div class="muted" style="margin-top:6px">소장 ${s.ownCount}${fm.unit} · 읽음 ${s.readCount}${fm.unit}</div>`}
       ${(ed.holdings||[]).map(h => `<div class="ed">${HOLD_TYPE[h.type]||''} ${esc(h.range)} · ${esc(h.platform||'')}</div>`).join('')}
       ${ed.read ? `<div class="ed">읽은 범위: ${esc(ed.read)}</div>` : ''}
       ${s.unreadOwned ? `<div class="hint">안 본 소장분 ${s.unreadOwned}${fm.unit}</div>` : ''}
@@ -480,7 +549,7 @@ function renderDetail(id){
         <button class="btn small" data-act="toggleWish" data-id="${esc(w.id)}">${w.wish ? '♥ 보고싶음 해제' : '♡ 보고싶음'}</button></div></div>
     <div class="chips">${tags.map(t => `<span class="chip small" data-act="searchTag" data-id="${t.id}">${t.axis===GENRE_AXIS?'':'#'}${esc(t.name)}</span>`).join('')}</div>
     ${w.memo ? `<div class="box" style="white-space:pre-wrap">${esc(w.memo)}</div>` : ''}
-    ${eds || '<div class="muted">등록된 형태가 없어요. 편집에서 웹툰·웹소·드시를 추가하세요.</div>'}
+    ${eds || '<div class="muted">등록된 형태가 없어요. 편집에서 웹툰·웹소·드씨를 추가하세요.</div>'}
     ${related.length ? `<div class="sec"><h2>관련 작품</h2></div>${related.map(r => workCard(r)).join('')}` : ''}`, () => render());
   fillCovers($('#panel'));
 }
@@ -545,7 +614,7 @@ function renderEdit(){
       <select class="input" id="tagAxis" style="width:120px">${AXES.filter(a => a !== GENRE_AXIS).map(a => `<option ${a==='기타'?'selected':''}>${esc(a)}</option>`).join('')}</select></div>
     <div class="chips" id="tagSuggest"></div>
     ${groups}
-    <label class="f">원작 작가 · 성우</label>
+    <label class="f">작가 · 성우</label>
     ${d._people.map((p, i) => `<div class="person-row" data-pi="${i}"><input class="input" list="peopleList" data-pk="name" value="${esc(p.name)}" placeholder="이름">
       <select class="input" data-pk="role">${Object.entries(ROLES).map(([k,l]) => `<option value="${k}" ${p.role===k?'selected':''}>${l}</option>`).join('')}</select>
       <button class="iconbtn" data-act="delPerson" data-i="${i}">✕</button></div>`).join('')}
@@ -774,7 +843,8 @@ const A = {
   pickTag: el => { const id = el.dataset.id; ui.fTags = ui.fTags.includes(id) ? ui.fTags.filter(x => x !== id) : [...ui.fTags, id]; el.classList.toggle('on'); },
   searchFor: el => { ui.q = el.dataset.q; ui.tab = 'search'; closeSheet(); },
   searchTag: el => { ui.q = ''; ui.fTags = [el.dataset.id]; ui.tab = 'search'; closeSheet(); },
-  more: el => { ui['more_'+el.dataset.k] = !ui['more_'+el.dataset.k]; renderDash(); },
+  more: el => { ui['more_'+el.dataset.k] = !ui['more_'+el.dataset.k]; renderHome(); },
+  libView: el => { ui.libView = el.dataset.k; renderLibrary(); },
   libSort: el => { ui.libSort = el.dataset.k; renderLibrary(); },
   toggleWish: async el => { const w = workById(el.dataset.id); w.wish = !w.wish; w.updatedAt = now(); await save(); renderDetail(w.id); },
   plusOne: async el => {
@@ -784,7 +854,7 @@ const A = {
     s.read.add(next); ed.read = formatSet(s.read);
     if(ed.watch === 'none') ed.watch = 'reading';
     if(s.total && s.read.size >= s.total) ed.watch = 'done';
-    w.updatedAt = now(); await save(); toast(`${FORMATS[f].label} ${next}${FORMATS[f].unit} 읽음`); renderDetail(w.id);
+    w.updatedAt = now(); await save(); toast(`${FORMATS[f].label} ${next}${FORMATS[f].unit} 읽음`); if(el.dataset.from) render(); else renderDetail(w.id);
   },
   toggleTag: el => {
     if(!el.dataset.keepq) readForm();
@@ -841,7 +911,8 @@ document.addEventListener('click', e => {
 (async function init(){
   try{ data = await kvGet('data'); }catch(e){ console.error(e); }
   if(!data){ data = emptyData(); await kvSet('data', data); }
-  data.scenes ||= []; data.settings ||= {platforms: clone(DEFAULT_PLATFORMS), updatedAt:1}; data.settings.platforms ||= clone(DEFAULT_PLATFORMS);
+  data.scenes ||= [];
+  if(!findTagByName('단편')){ ensureTag('단편', GENRE_AXIS); await kvSet('data', data); } data.settings ||= {platforms: clone(DEFAULT_PLATFORMS), updatedAt:1}; data.settings.platforms ||= clone(DEFAULT_PLATFORMS);
   syncCfg = (await kvGet('sync')) || syncCfg;
   setSyncState(syncCfg.url ? (syncCfg.last ? '동기화 ' + fmtTime(syncCfg.last) : '동기화 안 됨') : '');
   render();
