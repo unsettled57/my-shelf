@@ -1,5 +1,5 @@
 // 오프라인 실행용: 앱 파일만 캐시하고, 동기화(Apps Script) 요청은 건드리지 않는다.
-const CACHE = 'content-tracker-v2';
+const CACHE = 'content-tracker-v3';
 const FILES = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
 
 self.addEventListener('install', e => {

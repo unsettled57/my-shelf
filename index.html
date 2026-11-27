@@ -86,7 +86,7 @@ label.f{display:block;font-size:13px;color:var(--sub);margin:12px 0 4px}
 .badge.warn{background:rgba(183,121,31,.15);color:var(--warn)}
 .hold-row,.person-row{display:grid;gap:6px;margin:6px 0;align-items:center}
 .hold-row{grid-template-columns:1fr 92px 92px 32px}
-.person-row{grid-template-columns:1fr 100px 32px}
+.person-row{grid-template-columns:1fr 118px 32px}
 .iconbtn{border:0;background:none;font-size:18px;color:var(--sub);cursor:pointer}
 details.axis{border:1px solid var(--line);border-radius:10px;padding:6px 10px;margin:6px 0;background:var(--card)}
 details.axis summary{cursor:pointer;font-size:14px}
@@ -124,6 +124,22 @@ details.axis summary{cursor:pointer;font-size:14px}
 .sec h2 .muted{font-weight:400}
 .taglist-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--line);gap:6px}
 .taglist-row:last-child{border-bottom:0}
+.pill.wish{border:1px dashed var(--bad);color:var(--bad)}
+.xgrid{display:grid;grid-template-columns:1fr auto;gap:4px 8px;align-items:center}
+.xgrid .xl{font-size:13px}
+.xgrid .xl small{color:var(--sub);font-size:11px}
+.xgrid .chips{margin:2px 0}
+.stat-row{display:grid;grid-template-columns:92px 1fr auto;gap:8px;align-items:center;font-size:13px;padding:4px 0;cursor:pointer}
+.stat-row .sbar{height:10px;background:var(--chip);border-radius:5px;overflow:hidden;position:relative}
+.stat-row .sbar i{position:absolute;left:0;top:0;bottom:0;background:var(--accent);opacity:.35;border-radius:5px}
+.stat-row .sbar b{position:absolute;left:0;top:0;bottom:0;background:var(--accent);border-radius:5px}
+.stat-row .n{color:var(--sub);white-space:nowrap}
+.seg{display:flex;background:var(--chip);border-radius:10px;padding:3px;margin:2px 0 6px}
+.seg span{flex:1;text-align:center;padding:6px 0;border-radius:8px;font-size:14px;cursor:pointer;color:var(--sub)}
+.seg span.on{background:var(--card);color:var(--ink);font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.legend{font-size:11px;color:var(--sub);display:flex;gap:10px;margin:2px 0 6px}
+.legend i{display:inline-block;width:10px;height:8px;border-radius:2px;background:var(--accent);margin-right:3px;vertical-align:middle}
+.legend i.l{opacity:.35}
 </style>
 </head>
 <body>
@@ -149,7 +165,7 @@ const FORMATS = {
   drama:{label:'드씨', unit:'트랙'}
 };
 const FMT_KEYS = Object.keys(FORMATS);
-const DEFAULT_PLATFORMS = {webtoon:['봄툰','레진','미블','리디'], novel:['리디','봄툰','미블'], drama:['아코','플링','밤바다']};
+const DEFAULT_PLATFORMS = {webtoon:['봄툰','레진','미블','리디'], novel:['리디','봄툰','미블'], drama:['아코','플링','밤바다','현물']};
 const GENRE_AXIS = '장르';
 const AXES = ['장르','장면·사건','관계','설정·배경','분위기','공 속성','수 속성','기타'];
 const SEED_TAGS = {
@@ -161,10 +177,23 @@ const SEED_TAGS = {
   '공 속성':['다정공','집착공','광공','연하공','연상공','능글공','무심공','계략공','순정공','대형견공','미인공'],
   '수 속성':['아방수','다정수','미인수','연하수','연상수','단정수','짝사랑수','상처수','능력수','철벽수','도망수']
 };
-const WATCH = {none:'안 봄', reading:'보는 중', done:'완독'};
+// 형태별 감상 표현
+const WATCH_F = {
+  webtoon:{none:'안 봄', reading:'보는 중', done:'다 봄'},
+  novel:{none:'안 읽음', reading:'읽는 중', done:'완독'},
+  drama:{none:'안 들음', reading:'듣는 중', done:'완청'}
+};
+const VERB = {webtoon:'봄', novel:'읽음', drama:'들음'};
+const UNSEEN = {webtoon:'안 본', novel:'안 읽은', drama:'안 들은'};
+const RANGE_LABEL = {webtoon:'본 범위', novel:'읽은 범위', drama:'들은 범위'};
+const watchLabel = (f, k) => WATCH_F[f][k || 'none'];
 const OWN_LABEL = {full:'전체 소장', part:'일부 소장', rent:'대여·기다무', none:'미보유'};
+const OWN_SHORT = {full:'소장', part:'일부', rent:'대여', none:'미보유'};
 const HOLD_TYPE = {own:'소장', rent:'대여·기다무'};
-const ROLES = {author:'작가', voice:'성우'};
+const ROLE_OPTS = {author:'작가', voice:'주연 성우'};
+const roleLabel = x => x.role === 'voice' ? (x.sub ? '조연 성우' : '주연 성우') : '작가';
+const EXTRA_KINDS = {ng:'NG', free:'프리토크'};
+const XFLAGS = {own:'소장', heard:'들음', wish:'♡'};
 const STALE_DAYS = 30;
 
 /* ===== 유틸 ===== */
@@ -178,6 +207,8 @@ const live = arr => (arr || []).filter(x => !x.deleted);
 const clone = o => JSON.parse(JSON.stringify(o));
 function toast(msg){ const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('show'), 2200); }
 function fmtTime(ts){ if(!ts) return '없음'; const d = new Date(ts); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; }
+const lsGet = (k, d) => { try{ return localStorage.getItem(k) ?? d; }catch{ return d; } };
+const lsSet = (k, v) => { try{ localStorage.setItem(k, v); }catch{} };
 
 /* ===== 범위 계산 ===== */
 const RANGE_CAP = 5000;
@@ -190,7 +221,7 @@ function parseRange(str){
     if(m){ const a = +m[1], b = +m[2]; if(a >= 1 && b >= a && b - a <= RANGE_CAP){ for(let i=a;i<=b;i++) set.add(i); } else bad.push(p); continue; }
     m = /^(\d+)$/.exec(p);
     if(m && +m[1] >= 1){ set.add(+m[1]); continue; }
-    bad.push(p);
+    bad.push(p.replace(/^X/, ''));
   }
   return {set, bad};
 }
@@ -199,10 +230,44 @@ function formatSet(set){
   for(let i=0;i<nums.length;){ let j=i; while(j+1<nums.length && nums[j+1]===nums[j]+1) j++; out.push(i===j ? `${nums[i]}` : `${nums[i]}-${nums[j]}`); i=j+1; }
   return out.join(', ');
 }
+// 드씨 부 구성: 내부는 1부터 이어 세고, 화면에는 'n부 m'으로 보여준다
+const partsOf = ed => (ed?.parts || []).map(Number).filter(n => n > 0);
+function partStarts(parts){ const st = []; let acc = 0; for(const n of parts){ st.push(acc); acc += n; } return st; }
+function expandParts(str, parts){
+  if(!str) return '';
+  let s = String(str).replace(/트랙|화/g, ' ').replace(/[~〜–—]/g, '-');
+  if(!parts.length) return s;
+  const st = partStarts(parts);
+  const ok = p => p >= 1 && p <= parts.length;
+  // 1-2부, 1부-2부
+  s = s.replace(/(\d+)\s*부?\s*-\s*(\d+)\s*부/g, (m, a, b) => (ok(+a) && ok(+b) && +b >= +a) ? ` ${st[a-1]+1}-${st[b-1]+parts[b-1]} ` : ` X${m.replace(/\s/g,'')} `);
+  // 2부, 2부 3, 2부 3-5
+  s = s.replace(/(\d+)\s*부(?:\s*(\d+)(?![\d\s]*부)(?:\s*-\s*(\d+)(?![\d\s]*부))?)?/g, (m, p, a, b) => {
+    if(!ok(+p)) return ` X${m.replace(/\s/g,'')} `;
+    const base = st[p-1], len = parts[p-1];
+    if(a == null) return ` ${base+1}-${base+len} `;
+    const A = +a, B = b != null ? +b : A;
+    if(A < 1 || B > len || B < A) return ` X${m.replace(/\s/g,'')} `;
+    return ` ${base+A}-${base+B} `;
+  });
+  return s;
+}
+const parseEd = (str, ed) => parseRange(expandParts(str, partsOf(ed)));
+function formatEd(set, ed){
+  const parts = partsOf(ed); if(!parts.length) return formatSet(set);
+  const st = partStarts(parts); const out = []; const rest = new Set(set);
+  parts.forEach((len, i) => {
+    const inPart = []; for(let k=1;k<=len;k++){ if(set.has(st[i]+k)){ inPart.push(k); rest.delete(st[i]+k); } }
+    if(!inPart.length) return;
+    out.push(inPart.length === len ? `${i+1}부` : `${i+1}부 ${formatSet(new Set(inPart))}`);
+  });
+  if(rest.size) out.push(formatSet(rest));
+  return out.join(', ');
+}
 function editionStats(ed){
   const own = new Set(), rent = new Set();
-  for(const h of ed.holdings || []){ const {set} = parseRange(h.range); for(const n of set) (h.type === 'rent' ? rent : own).add(n); }
-  const read = parseRange(ed.read).set;
+  for(const h of ed.holdings || []){ const {set} = parseEd(h.range, ed); for(const n of set) (h.type === 'rent' ? rent : own).add(n); }
+  const read = parseEd(ed.read, ed).set;
   const total = +ed.total || 0;
   let status = 'none';
   if(own.size && total && own.size >= total) status = 'full';
@@ -212,11 +277,25 @@ function editionStats(ed){
   const maxRead = read.size ? Math.max(...read) : 0;
   return {own, rent, read, total, status, ownCount: own.size, readCount: read.size, unreadOwned, maxRead};
 }
-function workStats(w){
+function workStats(w, fmts = FMT_KEYS){
   const res = {}; let unreadOwned = 0, anyOwn = false, anyHold = false;
-  for(const f of FMT_KEYS){ const ed = w.editions?.[f]; if(!ed) continue; const s = editionStats(ed); res[f] = s; unreadOwned += s.unreadOwned; if(s.ownCount) anyOwn = true; if(s.ownCount || s.rent.size) anyHold = true; }
+  for(const f of FMT_KEYS){ const ed = w.editions?.[f]; if(!ed) continue; const s = editionStats(ed); res[f] = s;
+    if(!fmts.includes(f)) continue; unreadOwned += s.unreadOwned; if(s.ownCount) anyOwn = true; if(s.ownCount || s.rent.size) anyHold = true; }
   return {eds: res, unreadOwned, anyOwn, anyHold};
 }
+const progressOf = s => s.total ? {pct: Math.round(Math.min(1, s.readCount / s.total) * 100), left: Math.max(0, s.total - s.readCount)} : {pct:null, left:null};
+
+/* ===== 부가 콘텐츠 (드씨) ===== */
+function extrasEntries(ed){
+  const x = ed?.extras || {}; const out = [];
+  const flags = o => o && (o.own || o.heard || o.wish);
+  if(flags(x.acc)) out.push({key:'acc', label:'아코디온', st:x.acc});
+  const parts = new Set([...Object.keys(x.ng || {}), ...Object.keys(x.free || {})].map(Number));
+  for(const p of [...parts].sort((a,b) => a-b)) for(const k of Object.keys(EXTRA_KINDS)){ const o = x[k]?.[p]; if(flags(o)) out.push({key:`${k}:${p}`, kind:k, part:p, label:`${p}부 ${EXTRA_KINDS[k]}`, st:o}); }
+  return out;
+}
+const xFlagText = st => Object.keys(XFLAGS).filter(k => st[k]).map(k => XFLAGS[k]).join(' · ');
+function xGet(ed, key){ ed.extras ||= {}; if(key === 'acc') return (ed.extras.acc ||= {}); const [k, p] = key.split(':'); ed.extras[k] ||= {}; return (ed.extras[k][p] ||= {}); }
 
 /* ===== 초성 검색 ===== */
 const CHO = 'ㄱㄲㄴㄷㄸㄹㅁㅂㅃㅅㅆㅇㅈㅉㅊㅋㅌㅍㅎ';
@@ -266,8 +345,9 @@ const tagById = id => data.tags.find(t => t.id === id);
 const personById = id => data.people.find(p => p.id === id);
 const workById = id => data.works.find(w => w.id === id);
 const platformsOf = f => data.settings.platforms?.[f] || DEFAULT_PLATFORMS[f];
+const hasFmt = (w, f) => !!w.editions?.[f] || (w.wishF || []).includes(f);
 function tagCount(id){ return live(data.works).filter(w => (w.tags||[]).includes(id)).length; }
-function personCount(id){ return live(data.works).filter(w => (w.people||[]).some(p => p.id === id)).length; }
+function personCounts(id){ let main = 0, sub = 0; for(const w of live(data.works)) for(const x of w.people || []) if(x.id === id) (x.sub ? sub++ : main++); return {main, sub}; }
 function findTagByName(name){ const n = norm(name); return live(data.tags).find(t => norm(t.name) === n); }
 function ensureTag(name, axis){
   let t = findTagByName(name);
@@ -278,6 +358,25 @@ function ensurePerson(name){
   const n = norm(name); let p = live(data.people).find(x => norm(x.name) === n);
   if(!p){ p = {id:uid(), name:name.trim(), updatedAt:now()}; data.people.push(p); }
   return p;
+}
+// 출연진 붙여넣기: 쉼표·줄바꿈으로 나누고, 'A 역: 이름'이면 콜론 뒤를 쓴다
+function parseCast(text){
+  const out = [];
+  for(let s of String(text || '').split(/[,\n、]/)){
+    if(/[:：]/.test(s)) s = s.split(/[:：]/).pop();
+    s = s.trim(); if(s && !out.some(x => norm(x) === norm(s))) out.push(s);
+  }
+  return out;
+}
+// 이전 버전 데이터 맞추기
+function migrate(){
+  let changed = false;
+  data.scenes ||= []; data.settings ||= {platforms: clone(DEFAULT_PLATFORMS), updatedAt:1}; data.settings.platforms ||= clone(DEFAULT_PLATFORMS);
+  if(!findTagByName('단편')){ ensureTag('단편', GENRE_AXIS); changed = true; }
+  for(const w of data.works){
+    if(!Array.isArray(w.wishF)){ w.wishF = w.wish ? ['any'] : []; changed = true; }
+  }
+  return changed;
 }
 
 /* ===== 이미지 ===== */
@@ -298,7 +397,6 @@ async function compressImage(file){
     return await new Promise(res => c.toBlob(res, 'image/jpeg', 0.82));
   } finally { URL.revokeObjectURL(url); }
 }
-// 화면에 그린 뒤 표지 채우기
 async function fillCovers(root=document){
   for(const el of $$('[data-cover]', root)){
     const id = el.dataset.cover; const w = workById(id); if(!w?.hasImg) continue;
@@ -309,93 +407,94 @@ async function fillCovers(root=document){
 function coverEl(w, cls){ return `<div class="${cls}" data-cover="${esc(w.id)}">${esc((w.title||'?').trim().charAt(0))}</div>`; }
 
 /* ===== 상태 ===== */
-const ui = {tab:'home', libView:'grid', q:'', fFormats:[], fOwn:'', fWish:false, fTags:[], libFormat:'', libPlatform:'', libSort:'title', draft:null, draftCover:null};
+const ui = {tab:'home', homeF: lsGet('homeF', ''), statAxis: lsGet('statAxis', '공 속성'), libView:'grid', q:'', fFormats:[], fOwn:'', fWish:false, fTags:[], libFormat:'', libPlatform:'', libSort:'title', draft:null, draftCover:null};
 
 /* ===== 공통 표시 ===== */
-const OWN_SHORT = {full:'소장', part:'일부', rent:'대여', none:'미보유'};
-// 감상 진행: 총 화수를 알 때만 %와 남은 수를 계산
-function progressOf(s){ return s.total ? {pct: Math.round(Math.min(1, s.readCount / s.total) * 100), left: Math.max(0, s.total - s.readCount)} : {pct:null, left:null}; }
-// 형태별 한 줄 배지: 색 = 보유 상태, 글자 = 형태 + 보유 + 감상
+const wishOf = w => w.wishF || [];
+// 형태별 배지: 색 = 보유 상태, 글자 = 형태 + 보유 + 감상. 보고 싶은 형태는 ♡
 function pills(w, st){
-  return FMT_KEYS.filter(f => w.editions?.[f]).map(f => {
-    const ed = w.editions[f], s = st.eds[f], r = progressOf(s);
-    const watch = ed.watch === 'done' ? '완독' : ed.watch === 'reading' ? (r.pct != null ? r.pct + '%' : '보는 중') : '';
-    return `<span class="pill ${s.status}">${FORMATS[f].label} ${OWN_SHORT[s.status]}${watch ? ' · ' + watch : ''}</span>`;
+  const wf = wishOf(w);
+  return FMT_KEYS.filter(f => hasFmt(w, f)).map(f => {
+    const ed = w.editions?.[f];
+    if(!ed) return `<span class="pill wish">♡ ${FORMATS[f].label}</span>`;
+    const s = st.eds[f], r = progressOf(s);
+    const watch = ed.watch === 'done' ? watchLabel(f, 'done') : ed.watch === 'reading' ? (r.pct != null ? r.pct + '%' : watchLabel(f, 'reading')) : '';
+    return `<span class="pill ${s.status}">${wf.includes(f) ? '♡ ' : ''}${FORMATS[f].label} ${OWN_SHORT[s.status]}${watch ? ' · ' + watch : ''}</span>`;
   }).join('');
 }
 function workCard(w, hint=''){
   const st = workStats(w);
   return `<div class="card" data-act="open" data-id="${esc(w.id)}">${coverEl(w,'thumb')}
-    <div class="body"><div class="t">${esc(w.title)}${w.wish ? ' <span class="heart">♡</span>' : ''}</div>
+    <div class="body"><div class="t">${esc(w.title)}${wishOf(w).length ? ' <span class="heart">♡</span>' : ''}</div>
     <div class="pills">${pills(w, st) || '<span class="muted">형태 없음</span>'}</div>
     ${hint ? `<div class="hint">${hint}</div>` : ''}</div></div>`;
 }
-// 이어보기 카드: 남은 수는 숫자로, 진행도는 막대로
 function progressCard(w, f){
   const ed = w.editions[f], s = editionStats(ed), r = progressOf(s), u = FORMATS[f].unit;
-  const big = r.left != null ? (r.left === 0 ? '끝' : `${r.left}<small>${u} 남음</small>`) : `${s.maxRead}<small>${u}까지</small>`;
+  const big = r.left != null ? (r.left === 0 ? '끝' : `${r.left}<small>${u} 남음</small>`) : `${formatEd(new Set([s.maxRead]), ed)}<small>${u}까지</small>`;
   return `<div class="card pcard" data-act="open" data-id="${esc(w.id)}">${coverEl(w,'thumb sm')}
     <div class="body"><div class="t">${esc(w.title)}</div><div class="muted">${FORMATS[f].label} · ${esc(ed.platform||'')}</div>
-      ${r.pct != null ? `<div class="prow"><div class="bar"><i style="width:${r.pct}%"></i></div><span class="pct">${r.pct}%</span></div>` : '<div class="muted" style="font-size:12px">총 화수를 넣으면 진행도가 보여요</div>'}</div>
+      ${r.pct != null ? `<div class="prow"><div class="bar"><i style="width:${r.pct}%"></i></div><span class="pct">${r.pct}%</span></div>` : `<div class="muted" style="font-size:12px">총 ${u} 수를 넣으면 진행도가 보여요</div>`}</div>
     <div class="left"><div class="big">${big}</div><button class="btn small" data-act="plusOne" data-id="${esc(w.id)}" data-f="${f}" data-from="list">＋1</button></div></div>`;
 }
-// 표지 타일: 가로 줄·서재 격자용
 function coverTile(w, badge='', sub=''){
-  return `<div class="tile" data-act="open" data-id="${esc(w.id)}"><div class="tcov">${coverEl(w,'tcover')}${badge ? `<span class="tbadge">${badge}</span>` : ''}${w.wish ? '<span class="theart">♡</span>' : ''}</div>
-    <div class="tt">${esc(w.title)}</div>${sub ? `<div class="ts">${sub}</div>` : ''}</div>`;
+  return `<div class="tile" data-act="open" data-id="${esc(w.id)}"><div class="tcov">${coverEl(w,'tcover')}${badge ? `<span class="tbadge">${esc(badge)}</span>` : ''}${wishOf(w).length ? '<span class="theart">♡</span>' : ''}</div>
+    <div class="tt">${esc(w.title)}</div>${sub ? `<div class="ts">${esc(sub)}</div>` : ''}</div>`;
 }
 const strip = list => `<div class="strip">${list.map(x => coverTile(x.w, x.badge)).join('')}</div>`;
-// 보는 중인 형태 중 남은 수가 가장 적은 것
 function nearestEnd(w){
   let best = null;
   for(const f of FMT_KEYS){ const ed = w.editions?.[f]; if(!ed || ed.watch !== 'reading') continue; const r = progressOf(editionStats(ed));
     const left = r.left ?? Infinity; if(!best || left < best.left) best = {f, left, pct: r.pct}; }
   return best;
 }
+const peopleOf = w => (w.people||[]).map(x => ({...x, p: personById(x.id)})).filter(x => x.p && !x.p.deleted);
 
 /* ===== 검색 ===== */
+const EXTRA_WORDS = [{k:'acc', words:['아코디온','허보라']}, {k:'ng', words:['NG','엔지']}, {k:'free', words:['프리토크','프토']}];
 function searchWorks(){
   const q = ui.q.trim(); const out = [];
+  const xKinds = q ? EXTRA_WORDS.filter(x => x.words.some(wd => norm(wd).startsWith(norm(q)) && norm(q).length >= 2 || norm(q) === norm(wd))).map(x => x.k) : [];
   for(const w of live(data.works)){
-    let hint = '';
+    let hint = '', rank = 0;
     if(q){
+      const people = peopleOf(w);
       if(textMatch(q, w.title)) hint = '';
       else if((w.aliases||[]).some(a => textMatch(q, a))) hint = '별칭: ' + esc((w.aliases||[]).find(a => textMatch(q, a)));
-      else {
-        const p = (w.people||[]).map(x => ({...x, p: personById(x.id)})).find(x => x.p && !x.p.deleted && textMatch(q, x.p.name));
-        if(p) hint = `${ROLES[p.role]||''}: ${esc(p.p.name)}`;
-        else {
-          const t = (w.tags||[]).map(tagById).find(t => t && !t.deleted && textMatch(q, t.name));
-          if(t) hint = '태그: ' + esc(t.name);
-          else if(w.memo && textMatch(q, w.memo)) hint = '메모에서 찾음';
-          else continue;
-        }
+      else if(people.some(x => textMatch(q, x.p.name))){
+        const hits = people.filter(x => textMatch(q, x.p.name)); const main = hits.find(x => !x.sub) || hits[0];
+        hint = `${roleLabel(main)}: ${esc(main.p.name)}`; if(main.sub) rank = 1;
+      } else {
+        const t = (w.tags||[]).map(tagById).find(t => t && !t.deleted && textMatch(q, t.name));
+        const xs = xKinds.length ? extrasEntries(w.editions?.drama).filter(e => xKinds.includes(e.kind || e.key)) : [];
+        if(t) hint = '태그: ' + esc(t.name);
+        else if(xs.length) hint = xs.map(e => `${esc(e.label)} ${xFlagText(e.st)}`).join(' / ');
+        else if(w.memo && textMatch(q, w.memo)) hint = '메모에서 찾음';
+        else continue;
       }
     }
-    if(ui.fFormats.length && !ui.fFormats.some(f => w.editions?.[f])) continue;
-    if(ui.fWish && !w.wish) continue;
+    if(ui.fFormats.length && !ui.fFormats.some(f => hasFmt(w, f))) continue;
+    if(ui.fWish){ const wf = wishOf(w); if(!wf.length) continue; if(ui.fFormats.length && !ui.fFormats.some(f => wf.includes(f)) && !wf.includes('any')) continue; }
     if(ui.fTags.length && !ui.fTags.every(t => (w.tags||[]).includes(t))) continue;
     if(ui.fOwn){
-      const st = workStats(w);
+      const st = workStats(w, ui.fFormats.length ? ui.fFormats : FMT_KEYS);
       if(ui.fOwn === 'own' && !st.anyOwn) continue;
       if(ui.fOwn === 'unread' && !st.unreadOwned) continue;
       if(ui.fOwn === 'none' && st.anyHold) continue;
       if(ui.fOwn === 'unread') hint = (hint ? hint + ' · ' : '') + `안 본 소장분 ${st.unreadOwned}`;
     }
-    out.push({w, hint});
+    out.push({w, hint, rank});
   }
-  out.sort((a,b) => a.w.title.localeCompare(b.w.title, 'ko'));
+  out.sort((a,b) => a.rank - b.rank || a.w.title.localeCompare(b.w.title, 'ko'));
   return out;
 }
+function emptyState(){ return `<div class="empty">아직 등록한 작품이 없어요.<br><br><button class="btn primary" data-act="newWork">첫 작품 추가</button><br><br><span class="muted">JSON 파일이 있다면 설정 → 가져오기</span></div>`; }
 function renderSearch(){
   const v = $('#view');
-  if(!live(data.works).length){
-    v.innerHTML = `<div class="empty">아직 등록한 작품이 없어요.<br><br><button class="btn primary" data-act="newWork">첫 작품 추가</button><br><br><span class="muted">JSON 파일이 있다면 설정 → 가져오기</span></div>`;
-    return;
-  }
+  if(!live(data.works).length){ v.innerHTML = emptyState(); return; }
   const ownOpts = [['','전체'],['own','소장 있음'],['unread','안 본 소장분'],['none','미보유']];
   v.innerHTML = `
-    <input id="q" class="input search" type="search" placeholder="제목·초성·별칭·작가·성우·태그" value="${esc(ui.q)}" autocomplete="off">
+    <input id="q" class="input search" type="search" placeholder="제목·초성·별칭·작가·성우·태그·NG" value="${esc(ui.q)}" autocomplete="off">
     <div class="chips">${FMT_KEYS.map(f => `<span class="chip ${ui.fFormats.includes(f)?'on':''}" data-act="fFormat" data-f="${f}">${FORMATS[f].label}</span>`).join('')}
       <span class="chip ${ui.fWish?'on':''}" data-act="fWish">♡ 보고싶음</span></div>
     <div class="chips">${ownOpts.map(([k,l]) => `<span class="chip ${ui.fOwn===k?'on':''}" data-act="fOwn" data-k="${k}">${l}</span>`).join('')}</div>
@@ -416,39 +515,54 @@ function renderResults(){
 /* ===== 홈 ===== */
 function renderHome(){
   const works = live(data.works);
-  if(!works.length){
-    $('#view').innerHTML = `<div class="empty">아직 등록한 작품이 없어요.<br><br><button class="btn primary" data-act="newWork">첫 작품 추가</button><br><br><span class="muted">JSON 파일이 있다면 설정 → 가져오기</span></div>`;
-    return;
-  }
-  const reading = [], unread = [], wish = [], other = [], stale = [];
+  if(!works.length){ $('#view').innerHTML = emptyState(); return; }
+  const hf = ui.homeF, fmts = hf ? [hf] : FMT_KEYS;
+  const unseen = hf ? UNSEEN[hf] : '안 본';
+  const reading = [], unread = [], wish = [], stale = [];
   const limit = Date.now() - STALE_DAYS * 864e5;
   for(const w of works){
-    const st = workStats(w); const eds = FMT_KEYS.filter(f => w.editions?.[f]);
-    for(const f of eds){ if(w.editions[f].watch === 'reading'){ const r = progressOf(st.eds[f]); reading.push({w, f, left: r.left ?? Infinity}); } }
-    if(st.unreadOwned) unread.push({w, n: st.unreadOwned, badge:`안 본 ${st.unreadOwned}`});
-    if(w.wish){
-      if(!eds.length || eds.some(f => st.eds[f].status !== 'full')) wish.push({w, badge:''});
-      const done = eds.filter(f => w.editions[f].watch === 'done'), notDone = eds.filter(f => w.editions[f].watch !== 'done');
-      if(done.length && notDone.length) other.push({w, badge:`→ ${notDone.map(f => FORMATS[f].label).join('·')}`});
-    }
-    for(const f of eds){ const ed = w.editions[f]; if(ed.serial === 'ongoing' && (!ed.totalUpdated || Date.parse(ed.totalUpdated) < limit)){ stale.push({w, f, d: ed.totalUpdated}); break; } }
+    const st = workStats(w, fmts);
+    for(const f of fmts){ const ed = w.editions?.[f]; if(ed?.watch === 'reading'){ const r = progressOf(st.eds[f]); reading.push({w, f, left: r.left ?? Infinity}); } }
+    if(st.unreadOwned) unread.push({w, n: st.unreadOwned, badge:`${unseen} ${st.unreadOwned}`});
+    const wf = wishOf(w); const badges = [];
+    for(const f of fmts) if(wf.includes(f)) badges.push('♡ ' + FORMATS[f].label);
+    if(!hf && wf.includes('any')) badges.push('♡ 형태 미정');
+    if(fmts.includes('drama')) for(const e of extrasEntries(w.editions?.drama)) if(e.st.wish && !e.st.own) badges.push('♡ ' + e.label);
+    if(badges.length) wish.push({w, badge: badges[0] + (badges.length > 1 ? ` 외 ${badges.length - 1}` : '')});
+    for(const f of fmts){ const ed = w.editions?.[f]; if(ed?.serial === 'ongoing' && (!ed.totalUpdated || Date.parse(ed.totalUpdated) < limit)){ stale.push({w, f, d: ed.totalUpdated}); break; } }
   }
   reading.sort((a,b) => a.left - b.left || a.w.title.localeCompare(b.w.title, 'ko'));
   unread.sort((a,b) => b.n - a.n);
-  const genres = live(data.tags).filter(t => t.axis === GENRE_AXIS).map(t => ({t, n: tagCount(t.id)})).filter(x => x.n).sort((a,b) => b.n - a.n);
-  const maxG = genres[0]?.n || 1;
   const sec = (title, n, note='') => `<div class="sec"><h2>${title} <span class="muted">${n}</span></h2>${note ? `<span class="muted">${note}</span>` : ''}</div>`;
   const showAll = ui.more_reading, shown = showAll ? reading : reading.slice(0, 5);
-  const counts = FMT_KEYS.map(f => `${FORMATS[f].label} ${works.filter(w => w.editions?.[f]).length}`).join(' · ');
-  $('#view').innerHTML = `<div class="muted" style="margin-bottom:4px">작품 ${works.length} · ${counts}</div>` +
-    sec('이어보기', reading.length, '남은 화가 적은 순') +
-    (reading.length ? shown.map(x => progressCard(x.w, x.f)).join('') + (reading.length > 5 ? `<button class="btn small" data-act="more" data-k="reading">${showAll ? '접기' : `${reading.length - 5}개 더 보기`}</button>` : '') : '<div class="muted">보는 중인 작품이 없어요</div>') +
-    (unread.length ? sec('사놓고 안 본 작품', unread.length, '안 본 화가 많은 순') + strip(unread) : '') +
+  const readingTitle = hf === 'drama' ? '이어 듣기' : hf === 'novel' ? '이어 읽기' : '이어보기';
+  const segCount = f => works.filter(w => w.editions?.[f]?.watch === 'reading').length;
+  $('#view').innerHTML =
+    `<div class="seg">${[['','전체'], ...FMT_KEYS.map(f => [f, FORMATS[f].label])].map(([k,l]) => `<span class="${hf===k?'on':''}" data-act="homeF" data-k="${k}">${l}${k ? ` <small>${segCount(k) || ''}</small>` : ''}</span>`).join('')}</div>` +
+    sec(readingTitle, reading.length, '남은 수가 적은 순') +
+    (reading.length ? shown.map(x => progressCard(x.w, x.f)).join('') + (reading.length > 5 ? `<button class="btn small" data-act="more" data-k="reading">${showAll ? '접기' : `${reading.length - 5}개 더 보기`}</button>` : '') : `<div class="muted">${hf ? watchLabel(hf, 'reading') : '보는 중'}인 작품이 없어요</div>`) +
+    (unread.length ? sec(`사놓고 ${unseen} 작품`, unread.length, '많은 순') + strip(unread) : '') +
     (wish.length ? sec('♡ 구매 후보', wish.length) + strip(wish) : '') +
-    (other.length ? sec('다른 형태로도 보고 싶은 작품', other.length) + strip(other) : '') +
     (stale.length ? sec('연재 중 · 총 화수 확인', stale.length) + `<div class="box">${stale.map(x => `<div class="taglist-row" data-act="open" data-id="${esc(x.w.id)}" style="cursor:pointer"><span>${esc(x.w.title)}</span><span class="muted">${FORMATS[x.f].label} · ${x.d ? esc(x.d) + ' 갱신' : '갱신 기록 없음'}</span></div>`).join('')}</div>` : '') +
-    `<details class="axis" style="margin-top:18px"><summary>장르 분포</summary>${genres.map(g => `<div class="gbar"><span>${esc(g.t.name)}</span><div class="bar"><i style="width:${g.n/maxG*100}%"></i></div><span>${g.n}</span></div>`).join('') || '<div class="muted">장르 태그가 붙은 작품이 없어요</div>'}</details>`;
+    tagStats(works, fmts);
   fillCovers();
+}
+// 태그별 보유 현황: 축을 골라, 태그마다 작품 수와 그중 안 본 소장분이 있는 작품 수
+function tagStats(works, fmts){
+  const pool = ui.homeF ? works.filter(w => w.editions?.[ui.homeF]) : works;
+  const axes = AXES.filter(a => live(data.tags).some(t => t.axis === a && tagCount(t.id)));
+  if(!axes.length) return '';
+  const axis = axes.includes(ui.statAxis) ? ui.statAxis : axes[0];
+  const rows = live(data.tags).filter(t => t.axis === axis).map(t => {
+    const ws = pool.filter(w => (w.tags||[]).includes(t.id));
+    return {t, n: ws.length, u: ws.filter(w => workStats(w, fmts).unreadOwned).length};
+  }).filter(x => x.n).sort((a,b) => b.n - a.n || b.u - a.u);
+  const max = rows[0]?.n || 1; const open = ui.more_stat; const shown = open ? rows : rows.slice(0, 8);
+  return `<div class="sec"><h2>태그별 보유 현황</h2></div>
+    <div class="chips" style="margin-top:0">${axes.map(a => `<span class="chip small ${a===axis?'on':''}" data-act="statAxis" data-k="${esc(a)}">${esc(a)}</span>`).join('')}</div>
+    <div class="box"><div class="legend"><span><i class="l"></i>작품 수</span><span><i></i>그중 안 본 소장분 있음</span><span>· 누르면 검색</span></div>
+    ${shown.map(x => `<div class="stat-row" data-act="statTag" data-id="${x.t.id}"><span>${esc(x.t.name)}</span><div class="sbar"><i style="width:${x.n/max*100}%"></i><b style="width:${x.u/max*100}%"></b></div><span class="n">${x.n}${x.u ? ` · 안 본 ${x.u}` : ''}</span></div>`).join('') || '<div class="muted">이 형태에 해당하는 작품이 없어요</div>'}
+    ${rows.length > 8 ? `<button class="btn small" data-act="more" data-k="stat">${open ? '접기' : `${rows.length - 8}개 더 보기`}</button>` : ''}</div>`;
 }
 
 /* ===== 서재 ===== */
@@ -461,7 +575,7 @@ function renderLibrary(){
   if(ui.libSort === 'title') items.sort((a,b) => byTitle(a.w,b.w));
   else if(ui.libSort === 'updated') items.sort((a,b) => b.w.updatedAt - a.w.updatedAt);
   else if(ui.libSort === 'remain'){
-    items = items.map(x => { const n = nearestEnd(x.w); return {...x, n, badge: n ? (n.left === Infinity ? '보는 중' : `${n.left}${FORMATS[n.f].unit} 남음`) : ''}; });
+    items = items.map(x => { const n = nearestEnd(x.w); return {...x, n, badge: n ? (n.left === Infinity ? watchLabel(n.f, 'reading') : `${n.left}${FORMATS[n.f].unit} 남음`) : ''}; });
     items.sort((a,b) => (a.n ? a.n.left : 1e9 + 1) - (b.n ? b.n.left : 1e9 + 1) || byTitle(a.w,b.w));
   } else {
     items = items.map(x => { const n = workStats(x.w).unreadOwned; return {...x, n, badge: n ? `안 본 ${n}` : ''}; });
@@ -524,51 +638,77 @@ $('#sheet').addEventListener('click', e => { if(e.target.id === 'sheet') closeSh
 /* ===== 작품 상세 ===== */
 function renderDetail(id){
   const w = workById(id); if(!w || w.deleted) return closeSheet();
-  const st = workStats(w);
-  const people = (w.people||[]).map(x => ({...x, p: personById(x.id)})).filter(x => x.p && !x.p.deleted);
+  const st = workStats(w); const wf = wishOf(w);
+  const people = peopleOf(w);
+  const main = people.filter(x => !x.sub), subs = people.filter(x => x.sub);
   const tags = (w.tags||[]).map(tagById).filter(t => t && !t.deleted);
   const eds = FMT_KEYS.filter(f => w.editions?.[f]).map(f => {
-    const ed = w.editions[f], s = st.eds[f], fm = FORMATS[f];
-    const pct = (n) => s.total ? Math.min(100, n / s.total * 100) : 0;
-    return `<div class="edbox"><h4><span>${fm.label} <span class="muted">${esc(ed.platform||'')}</span></span>
-        <span><span class="badge ${ed.serial==='ongoing'?'warn':'good'}">${ed.serial==='ongoing'?'연재 중':'완결'}</span> <span class="badge">${WATCH[ed.watch||'none']}</span></span></h4>
+    const ed = w.editions[f], s = st.eds[f], fm = FORMATS[f], r = progressOf(s);
+    const pct = n => s.total ? Math.min(100, n / s.total * 100) : 0;
+    const parts = partsOf(ed); const xs = f === 'drama' ? extrasEntries(ed) : [];
+    return `<div class="edbox"><h4><span>${wf.includes(f) ? '<span class="heart">♡</span> ' : ''}${fm.label} <span class="muted">${esc(ed.platform||'')}</span></span>
+        <span><span class="badge ${ed.serial==='ongoing'?'warn':'good'}">${ed.serial==='ongoing'?'연재 중':'완결'}</span> <span class="badge">${watchLabel(f, ed.watch)}</span></span></h4>
       <div class="muted">총 ${s.total || '?'}${fm.unit}${ed.totalUpdated ? ` (갱신 ${esc(ed.totalUpdated)})` : ''} · ${OWN_LABEL[s.status]}</div>
+      ${parts.length ? `<div class="muted">부 구성: ${parts.map((n, i) => `${i+1}부 ${n}`).join(' · ')}</div>` : ''}
       ${s.total ? `<div class="muted" style="margin-top:6px">소장 ${s.ownCount}/${s.total}</div><div class="bar own"><i style="width:${pct(s.ownCount)}%"></i></div>
-      <div class="muted">읽음 ${s.readCount}/${s.total} · ${Math.round(pct(s.readCount))}%${s.readCount < s.total ? ` · <b style="color:var(--ink)">${s.total - s.readCount}${fm.unit} 남음</b>` : ''}</div><div class="bar"><i style="width:${pct(s.readCount)}%"></i></div>` : `<div class="muted" style="margin-top:6px">소장 ${s.ownCount}${fm.unit} · 읽음 ${s.readCount}${fm.unit}</div>`}
-      ${(ed.holdings||[]).map(h => `<div class="ed">${HOLD_TYPE[h.type]||''} ${esc(h.range)} · ${esc(h.platform||'')}</div>`).join('')}
-      ${ed.read ? `<div class="ed">읽은 범위: ${esc(ed.read)}</div>` : ''}
-      ${s.unreadOwned ? `<div class="hint">안 본 소장분 ${s.unreadOwned}${fm.unit}</div>` : ''}
-      <div class="row" style="margin-top:8px"><button class="btn small" data-act="plusOne" data-id="${esc(w.id)}" data-f="${f}">＋1${fm.unit} 읽음</button></div></div>`;
+      <div class="muted">${VERB[f]} ${s.readCount}/${s.total} · ${r.pct}%${r.left && s.readCount ? ` · <b style="color:var(--ink)">${r.left}${fm.unit} 남음</b>` : ''}</div><div class="bar"><i style="width:${pct(s.readCount)}%"></i></div>` : `<div class="muted" style="margin-top:6px">소장 ${s.ownCount}${fm.unit} · ${VERB[f]} ${s.readCount}${fm.unit}</div>`}
+      ${(ed.holdings||[]).map(h => `<div class="ed">${HOLD_TYPE[h.type]||''} ${esc(formatEd(parseEd(h.range, ed).set, ed) || h.range)} · ${esc(h.platform||'')}</div>`).join('')}
+      ${ed.read ? `<div class="ed">${RANGE_LABEL[f]}: ${esc(formatEd(parseEd(ed.read, ed).set, ed))}</div>` : ''}
+      ${s.unreadOwned ? `<div class="hint">${UNSEEN[f]} 소장분 ${s.unreadOwned}${fm.unit}</div>` : ''}
+      ${xs.length ? `<label class="f">부가 콘텐츠</label><div class="chips" style="margin-top:0">${xs.map(e => `<span class="chip small">${esc(e.label)} · ${xFlagText(e.st)}</span>`).join('')}</div>` : ''}
+      <div class="row" style="margin-top:8px"><button class="btn small" data-act="plusOne" data-id="${esc(w.id)}" data-f="${f}">＋1${fm.unit} ${VERB[f]}</button></div></div>`;
   }).join('');
+  const wishOnly = FMT_KEYS.filter(f => wf.includes(f) && !w.editions?.[f]);
   const related = (w.related||[]).map(workById).filter(r => r && !r.deleted);
+  const personChip = x => `<span class="chip small" data-act="searchFor" data-q="${esc(x.p.name)}">${roleLabel(x)} ${esc(x.p.name)}</span>`;
   openSheet(`<div class="panel-head"><h3>작품</h3><div class="row"><button class="btn small" data-act="edit" data-id="${esc(w.id)}">편집</button><button class="iconbtn" data-act="close">✕</button></div></div>
     <div class="row" style="align-items:flex-start;flex-wrap:nowrap">${coverEl(w,'cover')}
       <div style="min-width:0"><div style="font-size:18px;font-weight:700">${esc(w.title)}</div>
         ${(w.aliases||[]).length ? `<div class="muted">별칭: ${esc(w.aliases.join(', '))}</div>` : ''}
-        <div class="chips">${people.map(x => `<span class="chip small" data-act="searchFor" data-q="${esc(x.p.name)}">${ROLES[x.role]||''} ${esc(x.p.name)}</span>`).join('')}</div>
-        <button class="btn small" data-act="toggleWish" data-id="${esc(w.id)}">${w.wish ? '♥ 보고싶음 해제' : '♡ 보고싶음'}</button></div></div>
+        <div class="chips">${main.map(personChip).join('')}</div>
+        ${wf.length ? `<div class="pills">${wf.map(f => `<span class="pill wish">♡ ${f === 'any' ? '형태 미정' : FORMATS[f].label}</span>`).join('')}</div>` : ''}</div></div>
+    ${subs.length ? `<details class="axis"><summary>조연 성우 ${subs.length}명</summary><div class="chips">${subs.map(personChip).join('')}</div></details>` : ''}
     <div class="chips">${tags.map(t => `<span class="chip small" data-act="searchTag" data-id="${t.id}">${t.axis===GENRE_AXIS?'':'#'}${esc(t.name)}</span>`).join('')}</div>
     ${w.memo ? `<div class="box" style="white-space:pre-wrap">${esc(w.memo)}</div>` : ''}
-    ${eds || '<div class="muted">등록된 형태가 없어요. 편집에서 웹툰·웹소·드씨를 추가하세요.</div>'}
+    ${eds}
+    ${wishOnly.length ? `<div class="muted">아직 등록하지 않은 형태 중 보고 싶은 것: ${wishOnly.map(f => FORMATS[f].label).join(', ')}</div>` : ''}
+    ${!eds && !wishOnly.length ? '<div class="muted">등록된 형태가 없어요. 편집에서 웹툰·웹소·드씨를 추가하세요.</div>' : ''}
     ${related.length ? `<div class="sec"><h2>관련 작품</h2></div>${related.map(r => workCard(r)).join('')}` : ''}`, () => render());
   fillCovers($('#panel'));
 }
 
 /* ===== 편집 ===== */
-function blankEdition(f){ return {platform: platformsOf(f)[0] || '', serial:'complete', total:'', totalUpdated:'', watch:'none', read:'', holdings:[]}; }
+function blankEdition(f){ return {platform: platformsOf(f)[0] || '', serial:'complete', total:'', totalUpdated:'', watch:'none', read:'', holdings:[], ...(f === 'drama' ? {parts:[], extras:{}} : {})}; }
 function startEdit(id){
   const w = id ? workById(id) : null;
-  ui.draft = w ? clone(w) : {id:uid(), title:'', aliases:[], tags:[], people:[], wish:false, memo:'', related:[], editions:{}, hasImg:false, createdAt:now()};
-  ui.draft._isNew = !w;
-  ui.draft._enabled = Object.fromEntries(FMT_KEYS.map(f => [f, !!ui.draft.editions[f]]));
-  for(const f of FMT_KEYS) if(!ui.draft.editions[f]) ui.draft.editions[f] = blankEdition(f);
-  ui.draft._people = (ui.draft.people||[]).map(x => ({name: personById(x.id)?.name || '', role: x.role}));
+  ui.draft = w ? clone(w) : {id:uid(), title:'', aliases:[], tags:[], people:[], wishF:[], memo:'', related:[], editions:{}, hasImg:false, createdAt:now()};
+  const d = ui.draft;
+  d.wishF ||= [];
+  d._isNew = !w;
+  d._enabled = Object.fromEntries(FMT_KEYS.map(f => [f, !!d.editions[f]]));
+  for(const f of FMT_KEYS){ d.editions[f] = {...blankEdition(f), ...(d.editions[f] || {})}; }
+  const ed = d.editions.drama; ed.extras ||= {}; ed.parts ||= [];
+  // 범위는 부 구성이 있으면 'n부' 표기로 보여준다
+  for(const f of FMT_KEYS){ const e = d.editions[f]; if(partsOf(e).length){ e.read = formatEd(parseEd(e.read, e).set, e); e.holdings = (e.holdings||[]).map(h => ({...h, range: formatEd(parseEd(h.range, e).set, e) || h.range})); } }
+  const ps = peopleOf(d);
+  d._people = ps.filter(x => !x.sub).map(x => ({name: x.p.name, role: x.role}));
+  d._subVoices = ps.filter(x => x.sub).map(x => x.p.name).join(', ');
   ui.draftCover = null; ui.tagQuery = '';
   renderEdit();
 }
 function platformOptions(f, cur){
   const list = [...platformsOf(f)]; if(cur && !list.includes(cur)) list.push(cur); if(!list.includes('기타')) list.push('기타');
   return list.map(p => `<option ${p===cur?'selected':''}>${esc(p)}</option>`).join('');
+}
+function extrasHTML(ed){
+  const x = ed.extras || {};
+  const keys = [...Object.keys(x.ng || {}), ...Object.keys(x.free || {})].map(Number);
+  const P = Math.max(partsOf(ed).length, ...keys, 1);
+  const row = (key, label, sub='') => { const o = key === 'acc' ? (x.acc || {}) : (x[key.split(':')[0]]?.[key.split(':')[1]] || {});
+    return `<span class="xl">${label}${sub ? `<br><small>${sub}</small>` : ''}</span><span class="chips">${Object.entries(XFLAGS).map(([k,l]) => `<span class="chip small ${o[k]?'on':''}" data-act="xToggle" data-x="${key}" data-flag="${k}">${l}</span>`).join('')}</span>`; };
+  let h = row('acc', '아코디온', '허보라 포함, 작품당 한 세트');
+  for(let p=1; p<=P; p++) for(const k of Object.keys(EXTRA_KINDS)) h += row(`${k}:${p}`, `${p}부 ${EXTRA_KINDS[k]}`);
+  return `<div class="xgrid">${h}</div>${partsOf(ed).length ? '' : '<div class="muted" style="font-size:12px;margin-top:4px">부 구성을 입력하면 부마다 NG·프리토크 칸이 생겨요</div>'}`;
 }
 function renderEdit(){
   const d = ui.draft;
@@ -581,23 +721,26 @@ function renderEdit(){
   const coverPreview = ui.draftCover?.url ? `<img class="cover" src="${ui.draftCover.url}" alt="">` : (ui.draftCover === 'remove' || !d.hasImg ? `<div class="cover">${esc((d.title||'?').charAt(0))}</div>` : coverEl(d,'cover'));
   const edForms = FMT_KEYS.map(f => {
     const ed = d.editions[f], fm = FORMATS[f], on = d._enabled[f];
-    const s = editionStats(ed);
-    const bad = [...parseRange(ed.read).bad, ...(ed.holdings||[]).flatMap(h => parseRange(h.range).bad)];
-    return `<div class="edbox"><h4><label><input type="checkbox" data-en="${f}" ${on?'checked':''}> ${fm.label}</label>${on ? `<span class="muted" style="font-size:12px" id="edStat-${f}">${OWN_LABEL[s.status]} · 소장 ${s.ownCount} · 읽음 ${s.readCount}</span>` : ''}</h4>
+    const s = editionStats(ed); const hasParts = partsOf(ed).length > 0;
+    const bad = [...parseEd(ed.read, ed).bad, ...(ed.holdings||[]).flatMap(h => parseEd(h.range, ed).bad)];
+    const ph = hasParts ? '1부, 2부 1-3' : '1-50';
+    return `<div class="edbox"><h4><label><input type="checkbox" data-en="${f}" ${on?'checked':''}> ${fm.label}</label>${on ? `<span class="muted" style="font-size:12px" id="edStat-${f}">${OWN_LABEL[s.status]} · 소장 ${s.ownCount} · ${VERB[f]} ${s.readCount}</span>` : ''}</h4>
       ${on ? `<div class="grid2">
           <div><label class="f">플랫폼</label><select class="input" data-ef="${f}" data-k="platform">${platformOptions(f, ed.platform)}</select></div>
           <div><label class="f">연재</label><select class="input" data-ef="${f}" data-k="serial"><option value="complete" ${ed.serial!=='ongoing'?'selected':''}>완결</option><option value="ongoing" ${ed.serial==='ongoing'?'selected':''}>연재 중</option></select></div>
-          <div><label class="f">총 ${fm.unit} 수</label><input class="input" type="number" min="0" inputmode="numeric" data-ef="${f}" data-k="total" value="${esc(ed.total)}"></div>
-          <div><label class="f">감상</label><select class="input" data-ef="${f}" data-k="watch">${Object.entries(WATCH).map(([k,l]) => `<option value="${k}" ${ed.watch===k?'selected':''}>${l}</option>`).join('')}</select></div></div>
-        <label class="f">읽은 범위 (예: 1-80, 95)</label><input class="input" data-ef="${f}" data-k="read" value="${esc(ed.read)}" placeholder="1-80">
+          <div><label class="f">총 ${fm.unit} 수</label><input class="input" type="number" min="0" inputmode="numeric" data-ef="${f}" data-k="total" value="${esc(ed.total)}" ${hasParts ? 'readonly' : ''}></div>
+          <div><label class="f">감상</label><select class="input" data-ef="${f}" data-k="watch">${Object.entries(WATCH_F[f]).map(([k,l]) => `<option value="${k}" ${ed.watch===k?'selected':''}>${l}</option>`).join('')}</select></div></div>
+        ${f === 'drama' ? `<label class="f">부 구성 (현물 등, 각 부의 트랙 수. 예: 10, 12)</label><input class="input" id="partsInput" inputmode="numeric" value="${esc(partsOf(ed).join(', '))}" placeholder="비워 두면 1부터 이어서 셈">` : ''}
+        <label class="f">${RANGE_LABEL[f]} (예: ${ph})</label><input class="input" data-ef="${f}" data-k="read" value="${esc(ed.read)}" placeholder="${ph}">
         <label class="f">보유 구간</label>
-        ${(ed.holdings||[]).map((h, i) => `<div class="hold-row" data-hf="${f}" data-i="${i}">
-            <input class="input" data-hk="range" value="${esc(h.range)}" placeholder="1-50">
+        <div id="holds-${f}">${(ed.holdings||[]).map((h, i) => `<div class="hold-row" data-hf="${f}" data-i="${i}">
+            <input class="input" data-hk="range" value="${esc(h.range)}" placeholder="${ph}">
             <select class="input" data-hk="type">${Object.entries(HOLD_TYPE).map(([k,l]) => `<option value="${k}" ${h.type===k?'selected':''}>${l}</option>`).join('')}</select>
             <select class="input" data-hk="platform">${platformOptions(f, h.platform)}</select>
-            <button class="iconbtn" data-act="delHold" data-f="${f}" data-i="${i}">✕</button></div>`).join('')}
+            <button class="iconbtn" data-act="delHold" data-f="${f}" data-i="${i}">✕</button></div>`).join('')}</div>
         <div class="row"><button class="btn small" data-act="addHold" data-f="${f}">＋ 구간</button><button class="btn small" data-act="fullOwn" data-f="${f}">전체 소장으로</button></div>
-        <div class="warntext" id="edBad-${f}">${bad.length ? `이해하지 못한 범위: ${esc(bad.join(', '))}` : ''}</div>` : ''}</div>`;
+        <div class="warntext" id="edBad-${f}">${bad.length ? `이해하지 못한 범위: ${esc(bad.join(', '))}` : ''}</div>
+        ${f === 'drama' ? `<label class="f">부가 콘텐츠</label><div id="extrasBox">${extrasHTML(ed)}</div>` : ''}` : ''}</div>`;
   }).join('');
   const otherWorks = live(data.works).filter(w => w.id !== d.id);
   openSheet(`<div class="panel-head"><h3>${d._isNew ? '작품 추가' : '작품 편집'}</h3><div class="row"><button class="btn primary" data-act="saveWork">저장</button><button class="iconbtn" data-act="cancelEdit">✕</button></div></div>
@@ -606,7 +749,8 @@ function renderEdit(){
     <label class="f">표지</label><div class="row" style="align-items:flex-end">${coverPreview}
       <div class="row"><button class="btn small" data-act="pickCover">이미지 선택</button>${(d.hasImg || ui.draftCover?.url) && ui.draftCover !== 'remove' ? '<button class="btn small danger" data-act="removeCover">삭제</button>' : ''}</div></div>
     <input type="file" id="coverFile" accept="image/*" hidden>
-    <label style="display:block;margin-top:12px"><input type="checkbox" data-k="wish" ${d.wish?'checked':''}> ♡ 보고싶음 (할인 시 구매 후보)</label>
+    <label class="f">♡ 보고 싶은 형태 (할인 시 구매 후보, 등록 안 한 형태도 가능)</label>
+    <div class="chips">${FMT_KEYS.map(f => `<span class="chip ${d.wishF.includes(f)?'on':''}" data-act="wishToggle" data-f="${f}">♡ ${FORMATS[f].label}</span>`).join('')}${d.wishF.includes('any') ? '<span class="chip on" data-act="wishToggle" data-f="any">♡ 형태 미정<span class="x">✕</span></span>' : ''}</div>
     <label class="f">장르</label><div class="chips">${genres.map(t => `<span class="chip ${d.tags.includes(t.id)?'on':''}" data-act="toggleTag" data-id="${t.id}">${esc(t.name)}</span>`).join('')}</div>
     <label class="f">요소 · 키워드</label>
     <div class="chips">${d.tags.map(tagById).filter(t => t && !t.deleted && t.axis !== GENRE_AXIS).map(t => `<span class="chip on" data-act="toggleTag" data-id="${t.id}">${esc(t.name)}<span class="x">✕</span></span>`).join('') || '<span class="muted">선택한 태그 없음</span>'}</div>
@@ -614,11 +758,13 @@ function renderEdit(){
       <select class="input" id="tagAxis" style="width:120px">${AXES.filter(a => a !== GENRE_AXIS).map(a => `<option ${a==='기타'?'selected':''}>${esc(a)}</option>`).join('')}</select></div>
     <div class="chips" id="tagSuggest"></div>
     ${groups}
-    <label class="f">작가 · 성우</label>
+    <label class="f">작가 · 주연 성우</label>
     ${d._people.map((p, i) => `<div class="person-row" data-pi="${i}"><input class="input" list="peopleList" data-pk="name" value="${esc(p.name)}" placeholder="이름">
-      <select class="input" data-pk="role">${Object.entries(ROLES).map(([k,l]) => `<option value="${k}" ${p.role===k?'selected':''}>${l}</option>`).join('')}</select>
+      <select class="input" data-pk="role">${Object.entries(ROLE_OPTS).map(([k,l]) => `<option value="${k}" ${p.role===k?'selected':''}>${l}</option>`).join('')}</select>
       <button class="iconbtn" data-act="delPerson" data-i="${i}">✕</button></div>`).join('')}
     <button class="btn small" data-act="addPerson">＋ 인물 추가</button>
+    <label class="f">조연 성우 (쉼표·줄바꿈으로 구분, 출연진 목록 붙여넣기 가능)</label>
+    <textarea class="input" data-k="subVoices" placeholder="예: 홍길동, 김철수&#10;또는 '○○ 역: 홍길동'처럼 한 줄씩">${esc(d._subVoices)}</textarea>
     <label class="f">메모</label><textarea class="input" data-k="memo" placeholder="추천받은 곳, 기억할 내용 등">${esc(d.memo)}</textarea>
     <label class="f">형태별 정보</label>${edForms}
     ${otherWorks.length ? `<details class="axis"><summary>관련 작품 ${(d.related||[]).length ? `<b>(${d.related.length})</b>` : ''}</summary><div class="chips">${otherWorks.map(w => `<span class="chip ${(d.related||[]).includes(w.id)?'on':''}" data-act="toggleRelated" data-id="${w.id}">${esc(w.title)}</span>`).join('')}</div></details>` : ''}
@@ -638,8 +784,12 @@ function renderEdit(){
   };
   $$('[data-en]').forEach(cb => cb.onchange = () => { readForm(); d._enabled[cb.dataset.en] = cb.checked; rerenderEdit(); });
   $$('details.axis[data-axis]').forEach(dt => dt.addEventListener('toggle', () => { ui['axisOpen_'+dt.dataset.axis] = dt.open; }));
-  // 입력 중에는 화면을 다시 그리지 않고 상태 줄만 바꾼다 (다른 버튼 탭이 사라지지 않도록)
-  $('#panel').addEventListener('input', e => { if(e.target.closest('[data-ef], .hold-row')) updateEdStats(); });
+  // 입력 중에는 시트 전체를 다시 그리지 않는다 (다른 버튼 탭이 사라지지 않도록)
+  $('#panel').addEventListener('input', e => {
+    if(e.target.id === 'partsInput'){ readForm(); const ed = d.editions.drama; const t = $('[data-ef="drama"][data-k="total"]');
+      if(t){ t.readOnly = partsOf(ed).length > 0; if(t.readOnly) t.value = ed.total; } $('#extrasBox').innerHTML = extrasHTML(ed); }
+    if(e.target.closest('[data-ef], .hold-row') || e.target.id === 'partsInput') updateEdStats();
+  });
   $('#panel').addEventListener('change', e => { if(e.target.closest('.hold-row')) updateEdStats(); });
 }
 function updateEdStats(){
@@ -647,8 +797,8 @@ function updateEdStats(){
   for(const f of FMT_KEYS){
     const st = $('#edStat-' + f); if(!st) continue;
     const ed = ui.draft.editions[f]; const s = editionStats(ed);
-    st.textContent = `${OWN_LABEL[s.status]} · 소장 ${s.ownCount} · 읽음 ${s.readCount}`;
-    const bad = [...parseRange(ed.read).bad, ...(ed.holdings||[]).flatMap(h => parseRange(h.range).bad)];
+    st.textContent = `${OWN_LABEL[s.status]} · 소장 ${s.ownCount} · ${VERB[f]} ${s.readCount}`;
+    const bad = [...parseEd(ed.read, ed).bad, ...(ed.holdings||[]).flatMap(h => parseEd(h.range, ed).bad)];
     $('#edBad-' + f).textContent = bad.length ? '이해하지 못한 범위: ' + bad.join(', ') : '';
   }
 }
@@ -674,20 +824,25 @@ function readForm(){
   const val = k => p.querySelector(`[data-k="${k}"]:not([data-ef])`);
   d.title = val('title').value.trim();
   d.aliases = val('aliases').value.split(',').map(s => s.trim()).filter(Boolean);
-  d.wish = val('wish').checked;
   d.memo = val('memo').value;
+  d._subVoices = val('subVoices').value;
   d._people = $$('.person-row', p).map(r => ({name: r.querySelector('[data-pk="name"]').value.trim(), role: r.querySelector('[data-pk="role"]').value}));
   for(const f of FMT_KEYS){
     if(!d._enabled[f]) continue;
     const ed = d.editions[f];
     $$(`[data-ef="${f}"]`, p).forEach(el => { ed[el.dataset.k] = el.value; });
     ed.holdings = $$(`.hold-row[data-hf="${f}"]`, p).map(r => ({range: r.querySelector('[data-hk="range"]').value.trim(), type: r.querySelector('[data-hk="type"]').value, platform: r.querySelector('[data-hk="platform"]').value}));
+    if(f === 'drama'){ const pi = $('#partsInput'); if(pi){ ed.parts = pi.value.split(/[,\s]+/).map(Number).filter(n => n > 0); if(ed.parts.length) ed.total = ed.parts.reduce((a,b) => a+b, 0); } }
   }
 }
 async function saveWork(){
   readForm();
   const d = ui.draft;
   if(!d.title){ toast('제목을 입력해 주세요'); return; }
+  // 이해하지 못한 범위가 있으면 저장하지 않는다 (입력이 사라지지 않도록)
+  for(const f of FMT_KEYS){ if(!d._enabled[f]) continue; const ed = d.editions[f];
+    const bad = [...parseEd(ed.read, ed).bad, ...(ed.holdings||[]).flatMap(h => parseEd(h.range, ed).bad)];
+    if(bad.length){ toast(`${FORMATS[f].label}: 이해하지 못한 범위 '${bad[0]}'`); return; } }
   const dup = live(data.works).find(w => w.id !== d.id && norm(w.title) === norm(d.title));
   if(dup && !confirm(`'${dup.title}'이(가) 이미 있어요. 그래도 저장할까요?`)) return;
   const orig = workById(d.id);
@@ -698,15 +853,18 @@ async function saveWork(){
     ed.total = ed.total === '' ? '' : Math.max(0, parseInt(ed.total, 10) || 0);
     const origTotal = orig?.editions?.[f]?.total;
     if(ed.total !== '' && String(ed.total) !== String(origTotal ?? '')) ed.totalUpdated = today();
-    ed.read = ed.read ? formatSet(parseRange(ed.read).set) : '';
-    ed.holdings = (ed.holdings||[]).filter(h => h.range).map(h => ({...h, range: formatSet(parseRange(h.range).set) || h.range}));
+    ed.read = ed.read ? formatSet(parseEd(ed.read, ed).set) : '';
+    ed.holdings = (ed.holdings||[]).filter(h => h.range).map(h => ({...h, range: formatSet(parseEd(h.range, ed).set)}));
     if(ed.read && ed.watch === 'none') ed.watch = 'reading';
     if(ed.total && ed.read && parseRange(ed.read).set.size >= ed.total && ed.watch !== 'done') ed.watch = 'done';
+    if(f !== 'drama'){ delete ed.parts; delete ed.extras; }
     editions[f] = ed;
   }
   const people = [];
   for(const p of d._people){ if(!p.name) continue; const person = ensurePerson(p.name); if(!people.some(x => x.id === person.id && x.role === p.role)) people.push({id: person.id, role: p.role}); }
-  const w = {id:d.id, title:d.title, aliases:d.aliases, tags:d.tags, people, wish:d.wish, memo:d.memo, related:d.related||[], editions,
+  for(const name of parseCast(d._subVoices)){ const person = ensurePerson(name); if(!people.some(x => x.id === person.id && x.role === 'voice')) people.push({id: person.id, role:'voice', sub:true}); }
+  const wishF = d.wishF.filter(f => f === 'any' || FORMATS[f]);
+  const w = {id:d.id, title:d.title, aliases:d.aliases, tags:d.tags, people, wishF, wish: wishF.length > 0, memo:d.memo, related:d.related||[], editions,
     hasImg: d.hasImg, imgAt: d.imgAt || 0, createdAt: d.createdAt || now(), updatedAt: now()};
   if(ui.draftCover === 'remove'){ w.hasImg = false; w.imgAt = now(); await imgDel(w.id); dropURL(w.id); }
   else if(ui.draftCover?.blob){ w.hasImg = true; w.imgAt = now(); await imgPut(w.id, {blob: ui.draftCover.blob, at: w.imgAt}); dropURL(w.id); }
@@ -722,13 +880,13 @@ async function saveWork(){
 function renderTagPicker(){
   const sel = new Set(ui.fTags);
   openSheet(`<div class="panel-head"><h3>태그로 찾기</h3><div class="row"><button class="btn primary" data-act="close">적용</button></div></div>
-    <div class="muted">고른 태그를 모두 가진 작품만 보여줘요. 괄호는 작품 수.</div>
+    <div class="muted">고른 태그를 모두 가진 작품만 보여줘요. 숫자는 작품 수.</div>
     ${AXES.map(axis => { const ts = live(data.tags).filter(t => t.axis === axis); if(!ts.length) return '';
       return `<label class="f">${esc(axis)}</label><div class="chips">${ts.map(t => `<span class="chip ${sel.has(t.id)?'on':''}" data-act="pickTag" data-id="${t.id}">${esc(t.name)} <span style="opacity:.6">${tagCount(t.id)}</span></span>`).join('')}</div>`; }).join('')}`,
     () => render());
 }
 
-/* ===== 태그 관리 ===== */
+/* ===== 태그·인물 관리 ===== */
 function renderTagManager(){
   openSheet(`<div class="panel-head"><h3>태그 관리</h3><button class="iconbtn" data-act="close">✕</button></div>
     <div class="muted">이름을 바꾸면 모든 작품에 반영돼요. 합치기는 이 태그를 다른 태그로 옮기고 지워요.</div>
@@ -740,8 +898,8 @@ function renderTagManager(){
 function renderPersonManager(){
   const ps = live(data.people).sort((a,b) => a.name.localeCompare(b.name, 'ko'));
   openSheet(`<div class="panel-head"><h3>인물 관리</h3><button class="iconbtn" data-act="close">✕</button></div>
-    <div class="box">${ps.map(p => `<div class="taglist-row"><span data-act="searchFor" data-q="${esc(p.name)}" style="cursor:pointer">${esc(p.name)} <span class="muted">${personCount(p.id)}작품</span></span>
-      <span class="row" style="gap:4px"><button class="btn small" data-act="personRename" data-id="${p.id}">이름</button><button class="btn small danger" data-act="personDelete" data-id="${p.id}">삭제</button></span></div>`).join('') || '<div class="muted">아직 없어요. 작품 편집에서 추가하세요.</div>'}</div>`, () => render());
+    <div class="box">${ps.map(p => { const c = personCounts(p.id); return `<div class="taglist-row"><span data-act="searchFor" data-q="${esc(p.name)}" style="cursor:pointer">${esc(p.name)} <span class="muted">${c.main ? `주연·작가 ${c.main}` : ''}${c.main && c.sub ? ' · ' : ''}${c.sub ? `조연 ${c.sub}` : ''}${!c.main && !c.sub ? '0작품' : ''}</span></span>
+      <span class="row" style="gap:4px"><button class="btn small" data-act="personRename" data-id="${p.id}">이름</button><button class="btn small danger" data-act="personDelete" data-id="${p.id}">삭제</button></span></div>`; }).join('') || '<div class="muted">아직 없어요. 작품 편집에서 추가하세요.</div>'}</div>`, () => render());
 }
 
 /* ===== 가져오기 / 내보내기 ===== */
@@ -750,7 +908,6 @@ function exportJson(){
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `작품서재-${today()}.json`; a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 }
-// 이름으로 적힌 태그·인물도 받아들임 (일괄 등록용)
 function normalizeImported(inc){
   const out = {works:[], tags: inc.tags || [], people: inc.people || [], scenes: inc.scenes || [], settings: inc.settings};
   const t0 = now();
@@ -759,10 +916,13 @@ function normalizeImported(inc){
   const tagIds = new Set([...data.tags, ...out.tags].map(t => t.id));
   const personIds = new Set([...data.people, ...out.people].map(p => p.id));
   for(const w0 of inc.works || []){
-    const w = {aliases:[], tags:[], people:[], wish:false, memo:'', related:[], editions:{}, hasImg:false, ...w0};
+    const w = {aliases:[], tags:[], people:[], memo:'', related:[], editions:{}, hasImg:false, ...w0};
     w.id ||= uid(); w.updatedAt ||= t0; w.createdAt ||= t0;
+    if(!Array.isArray(w.wishF)) w.wishF = w.wish ? ['any'] : [];
+    w.wish = w.wishF.length > 0;
     w.tags = (w.tags||[]).map(x => tagIds.has(x) ? x : ensureTag(String(x), (w0.tagAxes||{})[x]).id);
-    w.people = (w.people||[]).map(x => typeof x === 'string' ? {id: ensurePerson(x).id, role:'author'} : (personIds.has(x.id) ? x : {id: ensurePerson(x.name || x.id).id, role: x.role || 'author'}));
+    w.people = (w.people||[]).map(x => typeof x === 'string' ? {id: ensurePerson(x).id, role:'author'}
+      : (personIds.has(x.id) ? x : {id: ensurePerson(x.name || x.id).id, role: x.role || 'author', ...(x.sub ? {sub:true} : {})}));
     for(const f of FMT_KEYS){ const ed = w.editions[f]; if(ed){ w.editions[f] = {...blankEdition(f), ...ed}; } }
     delete w.tagAxes;
     out.works.push(w);
@@ -805,7 +965,7 @@ async function sync(quiet){
   syncing = true; setSyncState('동기화 중…');
   try{
     const r = await gas('getData');
-    if(r.data) data = mergeData(data, JSON.parse(r.data));
+    if(r.data){ data = mergeData(data, JSON.parse(r.data)); migrate(); }
     const {images} = await gas('listImages');
     for(const w of data.works){
       const remoteAt = images[w.id] || 0;
@@ -834,6 +994,9 @@ const A = {
   cancelEdit: () => { const id = ui.draft?._isNew ? null : ui.draft?.id; const onClose = sheetOnClose; sheetOnClose = null; if(ui.draftCover?.url) URL.revokeObjectURL(ui.draftCover.url); ui.draft = null; ui.draftCover = null; if(id) renderDetail(id); else { sheetOnClose = onClose; closeSheet(); } },
   saveWork: () => saveWork(),
   deleteWork: async () => { if(!confirm('이 작품을 삭제할까요?')) return; const w = workById(ui.draft.id); if(w){ w.deleted = true; w.updatedAt = now(); await save(); } ui.draft = null; closeSheet(); toast('삭제했어요'); },
+  homeF: el => { ui.homeF = el.dataset.k; lsSet('homeF', ui.homeF); ui.more_reading = false; renderHome(); },
+  statAxis: el => { ui.statAxis = el.dataset.k; lsSet('statAxis', ui.statAxis); ui.more_stat = false; renderHome(); },
+  statTag: el => { ui.q = ''; ui.fTags = [el.dataset.id]; ui.fFormats = ui.homeF ? [ui.homeF] : []; ui.fOwn = ''; ui.fWish = false; ui.tab = 'search'; window.scrollTo(0,0); render(); },
   fFormat: el => { const f = el.dataset.f; ui.fFormats = ui.fFormats.includes(f) ? ui.fFormats.filter(x => x !== f) : [...ui.fFormats, f]; renderSearch(); },
   fOwn: el => { ui.fOwn = el.dataset.k; renderSearch(); },
   fWish: () => { ui.fWish = !ui.fWish; renderSearch(); },
@@ -841,21 +1004,25 @@ const A = {
   fReset: () => { ui.q = ''; ui.fFormats = []; ui.fOwn = ''; ui.fWish = false; ui.fTags = []; renderSearch(); },
   tagPicker: () => renderTagPicker(),
   pickTag: el => { const id = el.dataset.id; ui.fTags = ui.fTags.includes(id) ? ui.fTags.filter(x => x !== id) : [...ui.fTags, id]; el.classList.toggle('on'); },
-  searchFor: el => { ui.q = el.dataset.q; ui.tab = 'search'; closeSheet(); },
+  searchFor: el => { ui.q = el.dataset.q; ui.fTags = []; ui.fFormats = []; ui.fOwn = ''; ui.fWish = false; ui.tab = 'search'; closeSheet(); },
   searchTag: el => { ui.q = ''; ui.fTags = [el.dataset.id]; ui.tab = 'search'; closeSheet(); },
   more: el => { ui['more_'+el.dataset.k] = !ui['more_'+el.dataset.k]; renderHome(); },
   libView: el => { ui.libView = el.dataset.k; renderLibrary(); },
   libSort: el => { ui.libSort = el.dataset.k; renderLibrary(); },
-  toggleWish: async el => { const w = workById(el.dataset.id); w.wish = !w.wish; w.updatedAt = now(); await save(); renderDetail(w.id); },
   plusOne: async el => {
     const w = workById(el.dataset.id), f = el.dataset.f, ed = w.editions[f];
     const s = editionStats(ed); const next = s.maxRead + 1;
-    if(s.total && next > s.total){ toast('이미 마지막까지 읽었어요'); return; }
+    if(s.total && next > s.total){ toast('이미 마지막까지 감상했어요'); return; }
     s.read.add(next); ed.read = formatSet(s.read);
     if(ed.watch === 'none') ed.watch = 'reading';
     if(s.total && s.read.size >= s.total) ed.watch = 'done';
-    w.updatedAt = now(); await save(); toast(`${FORMATS[f].label} ${next}${FORMATS[f].unit} 읽음`); if(el.dataset.from) render(); else renderDetail(w.id);
+    w.updatedAt = now(); await save();
+    toast(`${FORMATS[f].label} ${formatEd(new Set([next]), ed)}${FORMATS[f].unit} ${VERB[f]}`);
+    if(el.dataset.from) render(); else renderDetail(w.id);
   },
+  wishToggle: el => { const d = ui.draft, f = el.dataset.f; d.wishF = d.wishF.includes(f) ? d.wishF.filter(x => x !== f) : [...d.wishF, f];
+    if(f === 'any') { readForm(); rerenderEdit(); } else el.classList.toggle('on'); },
+  xToggle: el => { const ed = ui.draft.editions.drama; const o = xGet(ed, el.dataset.x); o[el.dataset.flag] = !o[el.dataset.flag]; el.classList.toggle('on', o[el.dataset.flag]); },
   toggleTag: el => {
     if(!el.dataset.keepq) readForm();
     const d = ui.draft, id = el.dataset.id;
@@ -871,8 +1038,8 @@ const A = {
   delHold: el => { readForm(); ui.draft.editions[el.dataset.f].holdings.splice(+el.dataset.i, 1); rerenderEdit(); },
   fullOwn: el => {
     readForm(); const ed = ui.draft.editions[el.dataset.f]; const t = parseInt(ed.total, 10);
-    if(!t){ toast('총 화수를 먼저 입력해 주세요'); return; }
-    ed.holdings = [{range:`1-${t}`, type:'own', platform: ed.platform}]; rerenderEdit();
+    if(!t){ toast('총 수(또는 부 구성)를 먼저 입력해 주세요'); return; }
+    ed.holdings = [{range: partsOf(ed).length ? formatEd(parseRange(`1-${t}`).set, ed) : `1-${t}`, type:'own', platform: ed.platform}]; rerenderEdit();
   },
   pickCover: () => $('#coverFile').click(),
   removeCover: () => { readForm(); if(ui.draftCover?.url) URL.revokeObjectURL(ui.draftCover.url); ui.draftCover = 'remove'; rerenderEdit(); },
@@ -898,7 +1065,7 @@ const A = {
   tagNew: async () => { const n = prompt('새 태그 이름'); if(!n || !n.trim()) return; if(findTagByName(n)){ toast('이미 있는 태그예요'); return; }
     const a = prompt(`축 이름\n(${AXES.join(', ')})`, '기타'); ensureTag(n, AXES.includes((a||'').trim()) ? a.trim() : '기타'); await save(); renderTagManager(); },
   personRename: async el => { const p = personById(el.dataset.id); const n = prompt('새 이름', p.name); if(!n || !n.trim()) return; p.name = n.trim(); p.updatedAt = now(); await save(); renderPersonManager(); },
-  personDelete: async el => { const p = personById(el.dataset.id); const c = personCount(p.id); if(!confirm(`'${p.name}' 삭제${c ? ` (작품 ${c}개에서 빠져요)` : ''}?`)) return;
+  personDelete: async el => { const p = personById(el.dataset.id); const c = personCounts(p.id); const n = c.main + c.sub; if(!confirm(`'${p.name}' 삭제${n ? ` (작품 ${n}개에서 빠져요)` : ''}?`)) return;
     for(const w of data.works){ if((w.people||[]).some(x => x.id === p.id)){ w.people = w.people.filter(x => x.id !== p.id); w.updatedAt = now(); } }
     p.deleted = true; p.updatedAt = now(); await save(); renderPersonManager(); }
 };
@@ -911,15 +1078,14 @@ document.addEventListener('click', e => {
 (async function init(){
   try{ data = await kvGet('data'); }catch(e){ console.error(e); }
   if(!data){ data = emptyData(); await kvSet('data', data); }
-  data.scenes ||= [];
-  if(!findTagByName('단편')){ ensureTag('단편', GENRE_AXIS); await kvSet('data', data); } data.settings ||= {platforms: clone(DEFAULT_PLATFORMS), updatedAt:1}; data.settings.platforms ||= clone(DEFAULT_PLATFORMS);
+  if(migrate()) await kvSet('data', data);
   syncCfg = (await kvGet('sync')) || syncCfg;
   setSyncState(syncCfg.url ? (syncCfg.last ? '동기화 ' + fmtTime(syncCfg.last) : '동기화 안 됨') : '');
   render();
   if(syncCfg.url && syncCfg.key) sync(true);
   if('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => {});
 })();
-window.__app = {get data(){ return data; }, parseRange, formatSet, editionStats, cho, textMatch, mergeData};
+window.__app = {get data(){ return data; }, parseRange, formatSet, editionStats, cho, textMatch, mergeData, parseEd, formatEd, expandParts, parseCast};
 </script>
 </body>
 </html>
